@@ -99,9 +99,9 @@ Cela transforme un processus opaque en un système lisible, comparable à un his
 - [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch -->
 
 ### Galerie
-- [Image 1](images/image-1.png)
-- [Image 2](images/image-2.png)
+- [Image 1](images/sample-00.png)
+- [Image 2](images/sample-01.png)
 
 ### Documents
-- [Image 1](docs/document-1.png)
-- [Image 2](docs/document-2.png)
+- [Image 1](images/sample-00.png)
+- [Image 2](images/sample-01.png)
