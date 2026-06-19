@@ -64,7 +64,7 @@ Cela transforme un processus opaque en un système lisible, comparable à un his
 
 ### Contributeurs
 - Porteur du défi : Tahar Issad
-- Contributeurs : [@taharissad](github.com/taharissad), [@legiwatch](github.com/legiwatch)
+- Contributeurs : [@taharissad](github.com/taharissad), ...
 
 
 ### Ressources utilisées
