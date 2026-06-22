@@ -68,7 +68,7 @@ Cela transforme un processus opaque en un système lisible, comparable à un his
 
 
 ### Ressources utilisées
-<!-- Cochez les ressources utilisées en remplaçant `[ ]` par `[x]`.
+Cochez les ressources utilisées en remplaçant `[ ]` par `[x]`.
 
 - [ ] `openfisca-france-parameters` — Base de données de paramètres ✺ OpenFisca
 - [ ] `an-dossiers-legislatifs` — Dossiers législatifs de l'Assemblée nationale (législature courante) ✺ Assemblée nationale
@@ -96,12 +96,12 @@ Cela transforme un processus opaque en un système lisible, comparable à un his
 - [ ] `an-et-co-api-regroupement-toutes-donnees` — API - Accès unifié Parlement / Législation / Service Public ✺ Assemblée nationale & communauté
 - [ ] `legiwatch-api-parlement` — API Parlement ✺ LegiWatch
 - [ ] `legiwatch-database-parlement` — Base de données Parlement ✺ LegiWatch
-- [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch -->
+- [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch
 
 ### Galerie
-- [Image 1](images/sample-00.png)
-- [Image 2](images/sample-01.png)
+- [Image 1](images/image-1.png)
+- [Image 2](images/image-2.png)
 
 ### Documents
-- [Image 1](images/sample-00.png)
-- [Image 2](images/sample-01.png)
+- [Image 1](docs/document-1.png)
+- [Image 2](docs/document-2.png)
