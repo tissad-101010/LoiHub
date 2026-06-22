@@ -46,7 +46,7 @@ Résumer les changements complexes en langage simple pour les citoyens.
 https://demo.com
 
 ### Image principale
-![LoiHub](images/cover.png)
+![LoiHub](images/coverLH.png)
 
 ### Contributeurs
 - Tahar Issad
@@ -83,7 +83,7 @@ Cochez les ressources utilisées en remplaçant `[ ]` par `[x]`.
 - [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch
 
 ### Galerie
-- ![image cover de LoiHub](images/cover.png)
+- ![image cover de LoiHub](images/coverLH.png)
 - ![Accueil de LoiHub](images/image-1.png)
 - ![Visuel de l'interface de LoiHub](images/image-2.png)
 - ![Visuel de l'interface de LoiHub](images/image-3.png)
