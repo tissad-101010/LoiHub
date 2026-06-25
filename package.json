@@ -10,12 +10,12 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "^5.22.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
     "next": "14.2.35",
-    "prisma": "^7.8.0",
+    "prisma": "^5.22.0",
     "radix-ui": "^1.6.0",
     "react": "^18",
     "react-dom": "^18",
@@ -27,6 +27,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv": "^17.4.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.35",
     "eslint-config-prettier": "^10.1.8",
