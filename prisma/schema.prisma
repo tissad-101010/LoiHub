@@ -1,13 +1,132 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// 🏛️ Député
+//
+model Deputy {
+  id        String   @id @default(cuid())
+  name      String
+  group     String?  // groupe politique
+  createdAt DateTime @default(now())
+
+  votes     Vote[]
+  amendments Amendment[]
+  debates   Debate[]
+}
+
+//
+// 📜 Loi (document principal)
+//
+model Law {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      LawStatus @default(DRAFT)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    LawVersion[]
+  amendments  Amendment[]
+  debates     Debate[]
+  votes       Vote[]
+}
+
+//
+// 🧬 Version de loi (Git-like history)
+//
+model LawVersion {
+  id        String   @id @default(cuid())
+  content   String
+  version   Int
+
+  lawId     String
+  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+//
+// ✍️ Amendement
+//
+model Amendment {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  status    AmendmentStatus @default(PENDING)
+
+  lawId     String
+  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+
+  deputyId  String?
+  deputy    Deputy?  @relation(fields: [deputyId], references: [id])
+
+  votes     Vote[]
+
+  createdAt DateTime @default(now())
+}
+
+//
+// 🗣️ Débat
+//
+model Debate {
+  id        String   @id @default(cuid())
+  content   String
+
+  lawId     String
+  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+
+  deputyId  String?
+  deputy    Deputy?  @relation(fields: [deputyId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+//
+// 🗳️ Vote
+//
+model Vote {
+  id        String   @id @default(cuid())
+  value     VoteValue
+
+  lawId     String?
+  law       Law?     @relation(fields: [lawId], references: [id])
+
+  amendmentId String?
+  amendment   Amendment? @relation(fields: [amendmentId], references: [id])
+
+  deputyId  String
+  deputy    Deputy   @relation(fields: [deputyId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+//
+// 📊 Enums
+//
+enum LawStatus {
+  DRAFT
+  IN_DEBATE
+  VOTED
+  ADOPTED
+  REJECTED
+}
+
+enum AmendmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum VoteValue {
+  FOR
+  AGAINST
+  ABSTAIN
 }
