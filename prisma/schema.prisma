@@ -7,36 +7,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+
+model SourceFile {
+  id          String   @id @default(cuid())
+
+  name        String
+  path        String   @unique
+  hash        String?  // pour détecter changements dataset
+
+  importedAt  DateTime @default(now())
+
+  deputies    Deputy[]
+  laws        Law[]
+  dossiers    Dossier[]
+  amendments  Amendment[]
+  debates     Debate[]
+}
+
+
 //
 // 🏛️ Député
 //
 model Deputy {
   id        String   @id @default(cuid())
+
+  uid       String?  @unique // 🔥 AN ID
   name      String
-  group     String?  // groupe politique
-  createdAt DateTime @default(now())
+  group     String?
+
+  raw       Json?
+  sourceId  String?
+  source    SourceFile? @relation(fields: [sourceId], references: [id])
 
   votes     Vote[]
   amendments Amendment[]
   debates   Debate[]
+
+  createdAt DateTime @default(now())
 }
+
+
+
+//dossiers
+
+
+model Dossier {
+  id        String   @id @default(cuid())
+
+  uid       String?  @unique // AN reference
+  title     String?
+
+  raw         Json?    // 👈 IMPORTANT
+
+  sourceId  String?
+  source    SourceFile? @relation(fields: [sourceId], references: [id])
+
+  laws      Law[]
+
+
+  createdAt DateTime @default(now())
+}
+
+
+
 
 //
 // 📜 Loi (document principal)
 //
 model Law {
   id          String   @id @default(cuid())
+
+  uid         String?  @unique // AN reference
+
+  externalId  String   @unique // ✅ VRAI champ de mapping AN
+  
   title       String
   description String?
+
+  raw         Json?    // 👈 IMPORTANT
+
   status      LawStatus @default(DRAFT)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  dossierId   String?
+  dossier     Dossier? @relation(fields: [dossierId], references: [id])
+
+  sourceId    String?
+  source      SourceFile? @relation(fields: [sourceId], references: [id])
 
   versions    LawVersion[]
   amendments  Amendment[]
   debates     Debate[]
   votes       Vote[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 //
@@ -44,11 +109,12 @@ model Law {
 //
 model LawVersion {
   id        String   @id @default(cuid())
-  content   String
+
   version   Int
+  content   String   // snapshot complet ou diff
 
   lawId     String
-  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+  law       Law @relation(fields: [lawId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -57,16 +123,42 @@ model LawVersion {
 // ✍️ Amendement
 //
 model Amendment {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
+  id        String @id @default(cuid())
+
+  uid       String @unique
+
+  rawJson   Json
+
+  numeroLong String?
+  numeroOrdreDepot String?
+  prefixeOrganeExamen String?
+  examenRef String?
+  texteLegislatifRef String?
+
+  article   String?
+  alinea    String?
+
+  title     String?
+  content   String?
+
   status    AmendmentStatus @default(PENDING)
 
-  lawId     String
-  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+  sort      String?
+  dateDepot DateTime?
+  datePublication DateTime?
+  dateSort  DateTime?
 
+  authorId  String?
   deputyId  String?
-  deputy    Deputy?  @relation(fields: [deputyId], references: [id])
+
+  deputy    Deputy? @relation(fields: [deputyId], references: [id])
+
+  /// 🔥 IMPORTANT : rendu optionnel pour ingestion safe
+  lawId     String?
+  law       Law? @relation(fields: [lawId], references: [id])
+
+  sourceId  String?
+  source    SourceFile? @relation(fields: [sourceId], references: [id])
 
   votes     Vote[]
 
@@ -78,13 +170,17 @@ model Amendment {
 //
 model Debate {
   id        String   @id @default(cuid())
+
   content   String
 
   lawId     String
-  law       Law      @relation(fields: [lawId], references: [id], onDelete: Cascade)
+  law       Law @relation(fields: [lawId], references: [id], onDelete: Cascade)
 
   deputyId  String?
-  deputy    Deputy?  @relation(fields: [deputyId], references: [id])
+  deputy    Deputy? @relation(fields: [deputyId], references: [id])
+
+  sourceId  String?
+  source    SourceFile? @relation(fields: [sourceId], references: [id])
 
   createdAt DateTime @default(now())
 }
@@ -94,18 +190,31 @@ model Debate {
 //
 model Vote {
   id        String   @id @default(cuid())
+
   value     VoteValue
 
   lawId     String?
-  law       Law?     @relation(fields: [lawId], references: [id])
+  law       Law? @relation(fields: [lawId], references: [id])
 
   amendmentId String?
   amendment   Amendment? @relation(fields: [amendmentId], references: [id])
 
   deputyId  String
-  deputy    Deputy   @relation(fields: [deputyId], references: [id])
+  deputy    Deputy @relation(fields: [deputyId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+
+model EntityEdge {
+  id        String @id @default(cuid())
+
+  fromId    String
+  toId      String
+
+  type      String // "AMENDS", "VOTES", "PART_OF", etc.
+
+  metadata  Json?
 }
 
 //
