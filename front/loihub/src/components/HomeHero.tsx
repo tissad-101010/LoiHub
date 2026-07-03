@@ -6,16 +6,12 @@ const MINI_PARCOURS: { label: string; date: string; couleur: string; fait: boole
   { label: "Adoption définitive", date: "20 mai 2024", couleur: "#16a34a", fait: true },
 ];
 
-const BADGE = [
-  { label: "Transparence", couleur: "#2563eb" },
-  { label: "Traçabilité", couleur: "#7c3aed" },
-  { label: "Démocratie", couleur: "#16a34a" },
-];
+const BADGE = ["Transparence", "Traçabilité", "Démocratie"];
 
 const STATS = [
-  { valeur: "577", label: "députés suivis", bg: "bg-blue-100", fg: "text-blue-600" },
-  { valeur: "24/7", label: "mise à jour continue", bg: "bg-orange-100", fg: "text-orange-600" },
-  { valeur: "100%", label: "sources officielles", bg: "bg-purple-100", fg: "text-purple-600" },
+  { valeur: "577", label: "députés suivis" },
+  { valeur: "24/7", label: "mise à jour continue" },
+  { valeur: "100%", label: "sources officielles" },
 ];
 
 export default function HomeHero() {
@@ -23,10 +19,10 @@ export default function HomeHero() {
     <div className="grid grid-cols-2 gap-10">
       <div>
         <div className="mb-5 flex items-center gap-4">
-          {BADGE.map((b) => (
-            <span key={b.label} className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: b.couleur }} />
-              {b.label}
+          {BADGE.map((label) => (
+            <span key={label} className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              {label}
             </span>
           ))}
         </div>
@@ -79,7 +75,7 @@ export default function HomeHero() {
               placeholder="Ex : Pourquoi l'amendement n°452 a-t-il été adopté ?"
               className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
             />
-            <button className="shrink-0 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">
+            <button className="shrink-0 rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200">
               Poser la question →
             </button>
           </div>

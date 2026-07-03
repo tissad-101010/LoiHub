@@ -57,14 +57,14 @@ export default function SiteHeader() {
         {surPageLoi ? (
           <Link
             href="/"
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+            className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200"
           >
             ← Retour à l&apos;accueil
           </Link>
         ) : (
           <Link
             href="/loi/1234"
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+            className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200"
           >
             Commencer à explorer
           </Link>
