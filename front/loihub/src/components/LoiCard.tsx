@@ -2,40 +2,29 @@ import Link from "next/link";
 import { IconeThematique, LoiResume } from "@/lib/types";
 import { COULEUR_ACTEUR } from "@/lib/ui";
 
-const ICONES: Record<IconeThematique, { bg: string; fg: string; path: React.ReactNode }> = {
-  logement: {
-    bg: "bg-blue-100",
-    fg: "text-blue-600",
-    path: (
-      <>
-        <path d="M12 3l8 4v2H4V7l8-4z" strokeLinejoin="round" />
-        <path d="M5 10v8M9 10v8M15 10v8M19 10v8" strokeLinecap="round" />
-        <path d="M4 20h16" strokeLinecap="round" />
-      </>
-    ),
-  },
-  energie: {
-    bg: "bg-green-100",
-    fg: "text-green-600",
-    path: <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" strokeLinejoin="round" strokeLinecap="round" />,
-  },
-  numerique: {
-    bg: "bg-purple-100",
-    fg: "text-purple-600",
-    path: (
-      <>
-        <path d="M7 17a4 4 0 0 1-1-7.9A5 5 0 0 1 15.9 8 4.5 4.5 0 0 1 17 17H7z" strokeLinejoin="round" />
-      </>
-    ),
-  },
+// La forme du pictogramme dépend de la thématique de la loi ; sa couleur, elle,
+// suit le statut courant (COULEUR_ACTEUR), pour rester cohérente avec le badge.
+const FORME_ICONE: Record<IconeThematique, React.ReactNode> = {
+  logement: (
+    <>
+      <path d="M12 3l8 4v2H4V7l8-4z" strokeLinejoin="round" />
+      <path d="M5 10v8M9 10v8M15 10v8M19 10v8" strokeLinecap="round" />
+      <path d="M4 20h16" strokeLinecap="round" />
+    </>
+  ),
+  energie: <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" strokeLinejoin="round" strokeLinecap="round" />,
+  numerique: <path d="M7 17a4 4 0 0 1-1-7.9A5 5 0 0 1 15.9 8 4.5 4.5 0 0 1 17 17H7z" strokeLinejoin="round" />,
 };
 
-function IconeBadge({ icone }: { icone: IconeThematique }) {
-  const i = ICONES[icone];
+function IconeBadge({ loi }: { loi: LoiResume }) {
+  const c = COULEUR_ACTEUR[loi.etape.acteur];
   return (
-    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${i.bg} ${i.fg}`}>
+    <span
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+      style={{ backgroundColor: c.clair, color: c.accent }}
+    >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-        {i.path}
+        {FORME_ICONE[loi.icone]}
       </svg>
     </span>
   );
@@ -81,7 +70,7 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
   if (layout === "horizontal") {
     return (
       <div className="flex items-center gap-5 rounded-xl border border-gray-200 bg-white p-4">
-        <IconeBadge icone={loi.icone} />
+        <IconeBadge loi={loi} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-semibold text-slate-900">{loi.titre}</h3>
           <div className="mt-1.5 flex items-center gap-3">
@@ -103,7 +92,7 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
     <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h3 className="font-semibold text-slate-900">{loi.titre}</h3>
-        <IconeBadge icone={loi.icone} />
+        <IconeBadge loi={loi} />
       </div>
 
       <div className="mb-3">
