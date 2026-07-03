@@ -1,0 +1,112 @@
+"use client";
+import { useState } from "react";
+import SiteHeader from "@/components/SiteHeader";
+import LoiHeader from "@/components/LoiHeader";
+import ParcoursHorizontal from "@/components/ParcoursHorizontal";
+import StatsCards from "@/components/StatsCards";
+import Sommaire from "@/components/Sommaire";
+import ArticleTexte from "@/components/ArticleTexte";
+import HistoriqueAmendements from "@/components/HistoriqueAmendements";
+import Influenceurs from "@/components/Influenceurs";
+import TexteLoiComplet from "@/components/TexteLoiComplet";
+import { Amendement } from "@/lib/types";
+import {
+  getEnTeteLoi,
+  getParcours,
+  getStats,
+  getArticle,
+  getHistoriqueAmendements,
+  getInfluenceurs,
+  getDiffAmendement,
+  getTousLesArticles,
+} from "@/lib/queries";
+
+const numeroFromLabel = (label: string) => label.replace("Article ", "");
+
+export default function LoiPageClient({ dossierId }: { dossierId: string }) {
+  const [etapeActive, setEtapeActive] = useState<number | null>(null);
+  const [articleActifNumero, setArticleActifNumero] = useState("12");
+  const [amendementActif, setAmendementActif] = useState<Amendement | null>(null);
+
+  const loi = getEnTeteLoi(dossierId);
+  const parcours = getParcours(dossierId);
+  const stats = getStats(dossierId);
+  const etape = etapeActive !== null ? parcours[etapeActive] : null;
+  const estVueSimple = etape?.acteur === "promulgation" || etape?.acteur === "depot";
+  const article = getArticle(dossierId, articleActifNumero, etape?.version);
+
+  const historique = article ? getHistoriqueAmendements(article.numero) : [];
+  const influenceurs = article ? getInfluenceurs(article.numero) : [];
+  const amendementAffiche = amendementActif ?? article?.amendementActuel;
+  const diff = article && amendementAffiche ? getDiffAmendement(article.numero, amendementAffiche.numero) : undefined;
+
+  const statutParArticle = Object.fromEntries(
+    getTousLesArticles(dossierId)
+      .filter((a) => a.amendementActuel)
+      .map((a) => [a.numero, a.amendementActuel!.statut])
+  );
+
+  function selectEtape(index: number) {
+    setEtapeActive(index === -1 ? null : index);
+    setAmendementActif(null);
+  }
+
+  function selectArticle(label: string) {
+    setArticleActifNumero(numeroFromLabel(label));
+    setAmendementActif(null);
+  }
+
+  return (
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main className="mx-auto max-w-7xl space-y-5 p-6">
+        <LoiHeader loi={loi} />
+
+        <StatsCards stats={stats} />
+
+        <ParcoursHorizontal etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
+
+        {(!etape || estVueSimple) && (
+          <TexteLoiComplet
+            titreLoi={loi.titre}
+            version={etape ? etape.version : loi.version}
+            articles={getTousLesArticles(dossierId)}
+          />
+        )}
+
+        {etape && !estVueSimple && article && (
+          <>
+            <div className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-700">
+              Version consultée : <span className="font-medium">{etape.version}</span> — {etape.label} ({etape.date})
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="mb-4 font-semibold text-slate-900">Explorer le texte de loi</h2>
+              <div className="grid grid-cols-4 gap-6">
+                <div className="col-span-1">
+                  <Sommaire
+                    articleActif={`Article ${articleActifNumero}`}
+                    statutParArticle={statutParArticle}
+                    onSelect={selectArticle}
+                  />
+                </div>
+                <div className="col-span-3">
+                  <ArticleTexte article={article} amendement={amendementAffiche} diff={diff} />
+                </div>
+              </div>
+            </div>
+
+            <HistoriqueAmendements
+              historique={historique}
+              amendementActifNumero={amendementAffiche?.numero}
+              etapeDate={etape.date}
+              onSelect={setAmendementActif}
+            />
+
+            <Influenceurs influenceurs={influenceurs} />
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
