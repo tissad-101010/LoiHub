@@ -11,7 +11,9 @@ export default function HistoriquePage() {
       <main className="mx-auto max-w-7xl space-y-6 p-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Historique législatif</h1>
-          <p className="text-sm text-gray-500">Tous les dossiers de loi suivis par LoiHub et leur statut actuel.</p>
+          <p className="text-sm text-gray-500">
+            Le suivi du parcours de chaque loi, du dépôt à la promulgation, avec son statut actuel.
+          </p>
         </div>
 
         <div className="space-y-4">
