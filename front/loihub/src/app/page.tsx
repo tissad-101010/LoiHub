@@ -18,7 +18,7 @@ export default function Home() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Lois en cours</h2>
-            <button className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-gray-50">
+            <button className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50">
               Découvrir l&apos;historique
             </button>
           </div>
