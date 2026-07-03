@@ -23,7 +23,7 @@ export default function HomeSearch() {
         Exemples populaires :{" "}
         {EXEMPLES.map((ex, i) => (
           <span key={ex}>
-            <Link href="#" className="text-blue-600 hover:underline">
+            <Link href="#" className="text-slate-900 hover:underline">
               {ex}
             </Link>
             {i < EXEMPLES.length - 1 && " · "}

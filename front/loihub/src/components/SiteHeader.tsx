@@ -40,14 +40,6 @@ export default function SiteHeader() {
       </nav>
 
       <div className="flex items-center gap-3">
-        <button
-          title="Thème sombre bientôt disponible"
-          className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-            <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" strokeLinejoin="round" />
-          </svg>
-        </button>
         <Link
           href="#"
           className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-gray-50"
