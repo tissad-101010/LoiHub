@@ -69,7 +69,6 @@ export interface LoiResume {
   icone: IconeThematique;
   amendements: number;
   deputesImpliques: number;
-  // Une loi est soit adoptée (dateAdoption renseignée), soit en cours de rédaction (avancement renseigné).
-  dateAdoption?: string;
-  avancement?: number; // 0-100
+  derniereActualite: string; // date du dernier évènement connu sur ce dossier
+  etape: { label: string; acteur: ActeurEtape }; // étape courante du parcours -> couleur liée à ParcoursHorizontal
 }

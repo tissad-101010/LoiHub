@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconeThematique, LoiResume } from "@/lib/types";
+import { COULEUR_ACTEUR } from "@/lib/ui";
 
 const ICONES: Record<IconeThematique, { bg: string; fg: string; path: React.ReactNode }> = {
   logement: {
@@ -31,7 +32,8 @@ const ICONES: Record<IconeThematique, { bg: string; fg: string; path: React.Reac
 
 export default function LoiCard({ loi }: { loi: LoiResume }) {
   const icone = ICONES[loi.icone];
-  const enRedaction = loi.avancement !== undefined;
+  const couleurEtape = COULEUR_ACTEUR[loi.etape.acteur];
+  const termine = loi.etape.acteur === "promulgation";
 
   return (
     <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
@@ -44,38 +46,34 @@ export default function LoiCard({ loi }: { loi: LoiResume }) {
         </span>
       </div>
 
-      {enRedaction ? (
-        <div className="mb-4">
-          <div className="mb-1 text-xs text-gray-500">
-            Statut : Rédaction de première version ({loi.avancement}%)
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-gray-100">
-            <div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${loi.avancement}%` }} />
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mb-3 text-xs text-gray-500">Adoptée définitivement le {loi.dateAdoption}</div>
-          <div className="mb-4 flex gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-                <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" strokeLinejoin="round" />
-              </svg>
-              {loi.amendements.toLocaleString("fr-FR")} amendements
-            </span>
-            <span className="flex items-center gap-1">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-                <circle cx="9" cy="8" r="3" />
-                <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeLinecap="round" />
-              </svg>
-              {loi.deputesImpliques} députés impliqués
-            </span>
-          </div>
-        </>
-      )}
+      <span
+        className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+        style={{ backgroundColor: couleurEtape.clair, color: couleurEtape.accent }}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: couleurEtape.accent }} />
+        {loi.etape.label}
+      </span>
+
+      <div className="mb-3 text-xs text-gray-500">Dernière actualité : {loi.derniereActualite}</div>
+
+      <div className="mb-4 flex gap-4 text-xs text-gray-500">
+        <span className="flex items-center gap-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+            <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" strokeLinejoin="round" />
+          </svg>
+          {loi.amendements.toLocaleString("fr-FR")} amendements
+        </span>
+        <span className="flex items-center gap-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+            <circle cx="9" cy="8" r="3" />
+            <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeLinecap="round" />
+          </svg>
+          {loi.deputesImpliques} députés impliqués
+        </span>
+      </div>
 
       <Link href={`/loi/${loi.numero}`} className="mt-auto text-sm font-medium text-blue-600 hover:underline">
-        {enRedaction ? "Suivre l'avancement →" : "Explorer la loi →"}
+        {termine ? "Explorer la loi →" : "Suivre l'avancement →"}
       </Link>
     </div>
   );

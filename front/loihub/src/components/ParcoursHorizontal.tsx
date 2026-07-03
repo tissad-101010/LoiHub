@@ -1,16 +1,5 @@
-import { ActeurEtape, EtapeParcours } from "@/lib/types";
-
-// Même logique que les badges des cartes stats au-dessus (fond pastel clair +
-// contour/texte dans la teinte forte) : vert = dépôt/adoption/promulgation,
-// violet = commission, bleu = Assemblée, rouge = Sénat.
-const COULEUR: Record<ActeurEtape, { clair: string; accent: string }> = {
-  depot: { clair: "#dcfce7", accent: "#16a34a" },
-  adoption: { clair: "#dcfce7", accent: "#16a34a" },
-  promulgation: { clair: "#dcfce7", accent: "#16a34a" },
-  commission: { clair: "#ede9fe", accent: "#7c3aed" },
-  assemblee: { clair: "#dbeafe", accent: "#2563eb" },
-  senat: { clair: "#fee2e2", accent: "#dc2626" },
-};
+import { EtapeParcours } from "@/lib/types";
+import { COULEUR_ACTEUR } from "@/lib/ui";
 
 export default function ParcoursHorizontal({
   etapes,
@@ -28,7 +17,7 @@ export default function ParcoursHorizontal({
         <div className="absolute left-0 right-0 top-3 h-0.5 bg-gray-200" />
         {etapes.map((e, i) => {
           const active = etapeActive === i;
-          const { clair, accent } = COULEUR[e.acteur];
+          const { clair, accent } = COULEUR_ACTEUR[e.acteur];
           return (
             <button
               key={i}
