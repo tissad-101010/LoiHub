@@ -32,7 +32,7 @@ export default function SiteHeader() {
             <Link
               key={item}
               href={item === "Explorer les lois" ? "/historique" : "#"}
-              className={actif ? "font-medium text-blue-600" : "text-slate-600 hover:text-slate-900"}
+              className={actif ? "font-medium text-blue-900" : "text-slate-600 hover:text-slate-900"}
             >
               {item}
             </Link>
