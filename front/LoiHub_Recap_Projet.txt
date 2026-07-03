@@ -1,0 +1,166 @@
+========================================================
+LOIHUB — RECAP PROJET (pour usage avec l'assistant IA)
+Genere le : 03/07/2026
+========================================================
+
+1. PITCH DU PROJET
+-------------------
+LoiHub, "le GitHub de la loi", est un site web permettant aux citoyens,
+parlementaires et juristes de suivre en temps reel l'evolution d'une loi
+ou d'une proposition de loi : quels articles ont change, qui a propose
+quoi (amendements), et pourquoi.
+
+La metaphore est celle de GitHub (diffs, historique, contributeurs), mais
+le projet N'UTILISE PAS git. Le backend repose sur des donnees
+relationnelles (requetes SQL) construites a partir des jeux de donnees
+ouverts de l'Assemblee nationale (et eventuellement du Senat).
+
+Contexte : hackathon Assemblee nationale 2026
+(https://hackathon2026.assemblee-nationale.fr/)
+
+
+2. UTILISATEURS CIBLES
+-----------------------
+- Citoyens : comprendre simplement ce qui change dans une loi qui les
+  concerne, sans jargon juridique.
+- Parlementaires : suivre le parcours d'un texte, l'impact des
+  amendements de leurs collegues/groupes.
+- Juristes : acceder a l'historique precis des versions d'un article,
+  sourcer chaque modification a un amendement identifie.
+
+
+3. FONCTIONNALITES DE LA MAQUETTE FRONT DEJA REALISEE
+-------------------------------------------------------
+Page d'une loi (ex. "Projet de loi n°1234 - Logement abordable") :
+
+a) En-tete
+   - Numero du projet de loi, titre
+   - Statut (depose / adopte definitivement / promulgue)
+   - Dates cles : depot, promulgation, derniere version (ex v3.2 finale)
+   - Bouton "Voir le dossier legislatif"
+
+b) Parcours legislatif (timeline verticale)
+   Depot du projet -> Examen en commission -> Premiere lecture Assemblee
+   -> Lecture au Senat -> Seconde lecture Assemblee -> Adoption definitive
+   -> Promulgation, chacune avec sa date.
+
+c) Stats globales (cards)
+   - Nombre d'amendements (total + nombre adoptes)
+   - Nombre de deputes impliques (sur 577)
+   - Nombre de votes/scrutins publics enregistres
+   - Heures de debat
+
+d) Explorateur de texte de loi
+   - Sommaire hierarchique : Titre > Chapitre > Article
+   - Contenu de l'article selectionne, avec mention "Modifie par
+     amendement n°X"
+   - Bloc "Origine de cette modification" : numero d'amendement, statut
+     (adopte/rejete), auteur, groupe politique, date de depot, date
+     d'adoption, lien "Voir l'amendement"
+   - Resume de l'amendement genere par IA (langage clair)
+
+e) Vue "Difference avec la version precedente"
+   - Diff ligne a ligne façon code (rouge = supprime, vert = ajoute)
+     entre deux versions choisies (ex v3.1 vs v3.2)
+
+f) Historique des amendements sur un article
+   - Frise chronologique : Texte initial -> Amendement n°124 (retire)
+     -> Amendement n°305 (rejete) -> Amendement n°452 (adopte) ->
+     Amendement n°812 (rejete) -> Version finale
+   - Chaque etape affiche auteur, groupe, statut, date
+
+g) "Qui a influence cet article ?"
+   - Classement des deputes par pourcentage de contribution au texte
+     final de l'article, avec barre de couleur par groupe politique
+
+
+4. ARCHITECTURE TECHNIQUE (telle que cadree)
+----------------------------------------------
+- Front-end : code "a la main" (pas de generateur type git), a partir de
+  la maquette deja concue (charte graphique bleu marine / tricolore,
+  cards, timeline, diff viewer).
+- Donnees : ingestion des jeux de donnees ouverts Assemblee nationale
+  (+ eventuellement Senat / base unifiee) dans une base relationnelle,
+  puis requetes SQL pour reconstituer :
+    * les versions successives d'un article
+    * la chaine des amendements (auteur, groupe, statut, dates)
+    * les stats agregees (nb amendements, nb deputes, votes, debats)
+    * le "score d'influence" par depute sur un article donne
+- Pas de version-control (git) cote donnees : uniquement l'UX/metaphore.
+
+
+5. SOURCES DE DONNEES (Hackathon AN 2026)
+---------------------------------------------
+Catalogue : https://hackathon2026.assemblee-nationale.fr/ressources
+(recupere le 03/07/2026 — verifier la fraicheur si le hackathon a
+mis a jour la page depuis)
+
+a) Dossiers legislatifs
+   - AN (XVIIe legislature, en cours) : XML/JSON, mise a jour continue
+     https://data.assemblee-nationale.fr/travaux-parlementaires/dossiers-legislatifs
+     Champs : titres, numeros de depot, commission, rapporteur, dates
+     d'examen, statut (projet/adopte/rapport). Legislatures XIV-XVI
+     aussi disponibles sur ce meme site.
+   - Senat : base PostgreSQL, depuis oct. 1977
+     https://data.senat.fr/dosleg/
+   - Gouvernement / Legifrance (DOLE) : XML, depuis 12e legislature
+     (juin 2002), via data.gouv.fr
+
+b) Amendements
+   - AN amendements XVII : XML/JSON — TOUTES lectures/chambres de la
+     XVIIe legislature
+     https://data.assemblee-nationale.fr/travaux-parlementaires/amendements/tous-les-amendements
+     Champs : auteur(s), texte integral, expose des motifs, statut
+     (adopte/rejete/retire), ordre et date de depot.
+     -> Source principale pour l'historique des amendements et les diffs.
+   - Senat amendements : PostgreSQL, temps reel, depuis oct. 2001
+     (seance) / 2010 (commission)
+     https://data.senat.fr/ameli/
+
+c) Deputes
+   - Deputes en exercice (XVIIe legislature, depuis le 8 juillet 2024) :
+     CSV/XML, mise a jour continue
+     https://data.assemblee-nationale.fr/acteurs/deputes-en-exercice
+     Champs : etat civil, parti, commissions, collaborateurs, mandats,
+     votes.
+   - Historique des deputes (XIe legislature, juin 1997 -> aujourd'hui) :
+     XML/JSON
+     https://data.assemblee-nationale.fr/acteurs/historique-des-deputes
+     Champs : etat civil, organes parlementaires, assemblees
+     internationales, appartenance politique, mandats.
+   - Base combinee deputes+senateurs+ministres (XVe legislature+) :
+     XML/JSON, mise a jour en "mode test" -> a utiliser en secours
+     uniquement (fiabilite moindre).
+
+d) Options de bases unifiees (a evaluer avant de tout reconstruire soi-meme)
+   - Base PostgreSQL unifiee (AN + Senat + Legifrance + Service Public),
+     XIVe legislature+, plusieurs mises a jour/jour.
+     -> Piste la plus rapide pour la couche SQL plutot que de parser
+     le XML brut de zero.
+   - API REST JSON unifiee :
+     https://www.tricoteuses.fr/services/api-canutes-legifrance/documentation
+   - Serveur MCP unifie (integration IA) — pertinent pour la fonction
+     "Resume de l'amendement par IA" si on veut un acces live aux
+     donnees plutot qu'un import statique.
+
+Slides de presentation des ressources :
+https://hackathon.assemblee-nationale.fr/2026-07-03_presentation_des_ressources.pdf
+
+
+6. PISTES DE TRAVAIL / PROCHAINES ETAPES
+-------------------------------------------
+- Choisir entre (a) parser les flux XML/JSON bruts AN et construire son
+  propre schema Postgres, ou (b) brancher directement sur la base
+  PostgreSQL unifiee si l'acces est fourni pendant le hackathon.
+- Modeliser un schema minimal : loi/dossier -> versions -> articles ->
+  amendements -> auteur (depute) -> groupe politique -> statut/dates.
+- Ecrire les requetes SQL cles : diff entre deux versions d'un article,
+  chronologie des amendements d'un article, score d'influence par
+  depute, agregats globaux (nb amendements/deputes/votes/debats).
+- Brancher le front existant (maquette) sur ces requetes.
+- Le "resume IA" et le score d'influence sont les deux points les plus
+  complexes techniquement : a cadrer en premier.
+
+========================================================
+Fin du document.
+========================================================
