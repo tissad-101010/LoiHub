@@ -14,9 +14,9 @@ export default function HistoriquePage() {
           <p className="text-sm text-gray-500">Tous les dossiers de loi suivis par LoiHub et leur statut actuel.</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-5">
+        <div className="space-y-4">
           {lois.map((loi) => (
-            <LoiCard key={loi.numero} loi={loi} />
+            <LoiCard key={loi.numero} loi={loi} layout="horizontal" />
           ))}
         </div>
       </main>
