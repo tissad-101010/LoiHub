@@ -1,5 +1,5 @@
 import * as React from "react"
-
+import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Card({
@@ -92,6 +92,70 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+
+
+interface StatCardProps {
+  title: string
+  value: React.ReactNode
+  description?: string
+  icon: LucideIcon
+  trend?: React.ReactNode
+  className?: string
+}
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  trend,
+  className,
+}: StatCardProps) {
+  return (
+    <Card className={cn("justify-between", className)}>
+      <CardHeader>
+
+        <div className="flex items-start justify-between gap-4">
+
+          <div className="space-y-1">
+
+            <CardDescription>{title}</CardDescription>
+
+            <CardTitle className="text-3xl font-bold tracking-tight">
+              {value}
+            </CardTitle>
+
+          </div>
+
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+
+            <Icon className="h-5 w-5" />
+
+          </div>
+
+        </div>
+
+      </CardHeader>
+
+      {(description || trend) && (
+        <CardContent className="flex items-center justify-between">
+
+          {description && (
+            <p className="text-sm text-muted-foreground">
+              {description}
+            </p>
+          )}
+
+          {trend}
+
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+
+
 export {
   Card,
   CardHeader,
@@ -100,4 +164,5 @@ export {
   CardAction,
   CardDescription,
   CardContent,
+  StatCard,
 }

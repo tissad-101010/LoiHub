@@ -1,32 +1,49 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function loadFolderSmart(inputPath: string): any[] {
-  
+function safeParse(filePath: string): unknown | null {
+  try {
+    const raw = fs.readFileSync(filePath, "utf-8").trim();
+
+    if (!raw) return null;
+
+    return JSON.parse(raw);
+  } catch {
+    console.error("❌ Invalid JSON:", filePath);
+    return null;
+  }
+}
+
+export function loadFolderSmart(inputPath: string): unknown[] {
   const absolute = path.resolve(process.cwd(), inputPath);
 
-  function scan(dir: string): any[] {
+  function scan(dir: string): unknown[] {
     const stat = fs.statSync(dir);
 
+    // 👉 sécurité : on ne parse QUE les fichiers JSON ici
     if (stat.isFile()) {
-      return [JSON.parse(fs.readFileSync(dir, "utf-8"))];
+      if (!dir.endsWith(".json")) return [];
+
+      const parsed = safeParse(dir);
+      return parsed ? [parsed] : [];
     }
 
     const entries = fs.readdirSync(dir);
-    const results: any[] = [];
+    const results: unknown[] = [];
+
     for (const entry of entries) {
       const full = path.join(dir, entry);
       const s = fs.statSync(full);
+
       if (s.isDirectory()) {
         results.push(...scan(full));
       } else if (entry.endsWith(".json")) {
-        results.push(JSON.parse(fs.readFileSync(full, "utf-8")));
+        const parsed = safeParse(full);
+        if (parsed) results.push(parsed);
       }
-      // exit when we have 1000 results to avoid memory issues
-      if (results.length >= 1000) {
-        console.warn("loadFolderSmart: reached 1000 results, stopping scan");
-        break;
-      }
+
+      // option anti-OOM (décommentable)
+      // if (results.length >= 1000) break;
     }
 
     return results;
