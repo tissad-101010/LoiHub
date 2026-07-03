@@ -2,12 +2,60 @@
 // A chaque endroit marqué "REQUETE SQL", remplacer le retour mock par l'appel DB reel.
 
 import { projetLoi, sommaire, loisEnCours } from "./mock-data";
-import { ProjetLoi, Article } from "./types";
+import { ProjetLoi, Article, ActeurEtape } from "./types";
 
 // REQUETE SQL : SELECT numero, titre, icone, amendements, deputes_impliques, date_adoption, avancement
 // FROM dossiers_legislatifs ORDER BY date_depot DESC LIMIT 3
 export function getLoisEnCours() {
   return loisEnCours;
+}
+
+const MOIS_FR: Record<string, number> = {
+  "janv": 0, "fev": 1, "fév": 1, "mars": 2, "avr": 3, "avril": 3,
+  "mai": 4, "juin": 5, "juil": 6, "aout": 7, "août": 7,
+  "sept": 8, "oct": 9, "nov": 10, "dec": 11, "déc": 11,
+};
+
+function parseDateFr(date: string): number {
+  const [jour, moisRaw, annee] = date.replace(".", "").split(" ");
+  const mois = MOIS_FR[moisRaw.toLowerCase()] ?? 0;
+  return new Date(Number(annee), mois, Number(jour)).getTime();
+}
+
+export interface EvenementHistorique {
+  loiNumero: string;
+  loiTitre: string;
+  label: string;
+  date: string;
+  acteur: ActeurEtape;
+}
+
+// REQUETE SQL : SELECT dl.numero AS loi_numero, dl.titre AS loi_titre, ep.label, ep.date, ep.acteur
+// FROM etapes_parcours ep JOIN dossiers_legislatifs dl ON dl.id = ep.dossier_id
+// ORDER BY ep.date DESC
+// -> alimente la page /historique ; pour l'instant seul le dossier 1234 a un parcours détaillé,
+// les autres lois de la home n'exposent que leur étape courante.
+export function getHistoriqueGlobal(): EvenementHistorique[] {
+  const evenements: EvenementHistorique[] = projetLoi.parcours.map((etape) => ({
+    loiNumero: projetLoi.numero,
+    loiTitre: projetLoi.titre,
+    label: etape.label,
+    date: etape.date,
+    acteur: etape.acteur,
+  }));
+
+  for (const loi of loisEnCours) {
+    if (loi.numero === projetLoi.numero) continue;
+    evenements.push({
+      loiNumero: loi.numero,
+      loiTitre: loi.titre,
+      label: loi.etape.label,
+      date: loi.derniereActualite,
+      acteur: loi.etape.acteur,
+    });
+  }
+
+  return evenements.sort((a, b) => parseDateFr(b.date) - parseDateFr(a.date));
 }
 
 // REQUETE SQL : SELECT numero, titre, statut, date_depot, date_promulgation, version

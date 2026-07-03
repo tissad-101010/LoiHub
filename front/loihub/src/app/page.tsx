@@ -1,3 +1,4 @@
+import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import HomeSearch from "@/components/HomeSearch";
 import HomeHero from "@/components/HomeHero";
@@ -18,9 +19,12 @@ export default function Home() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Lois en cours</h2>
-            <button className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+            <Link
+              href="/historique"
+              className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            >
               Découvrir l&apos;historique
-            </button>
+            </Link>
           </div>
           <div className="grid grid-cols-3 gap-5">
             {lois.map((loi) => (
