@@ -5,10 +5,15 @@ function safeParse(filePath: string): unknown | null {
   try {
     const raw = fs.readFileSync(filePath, "utf-8").trim();
 
-    if (!raw) return null;
+    if (!raw) {
+      console.warn("⚠️ Empty JSON file skipped:", filePath);
+      return null;
+    }
 
-    return JSON.parse(raw);
-  } catch {
+    const parsed = JSON.parse(raw);
+    console.log("✅ JSON loaded:", filePath);
+    return parsed;
+  } catch (error) {
     console.error("❌ Invalid JSON:", filePath);
     return null;
   }
@@ -17,37 +22,41 @@ function safeParse(filePath: string): unknown | null {
 export function loadFolderSmart(inputPath: string): unknown[] {
   const absolute = path.resolve(process.cwd(), inputPath);
 
-  function scan(dir: string): unknown[] {
-    const stat = fs.statSync(dir);
+  console.log("📂 Loading folder:", absolute);
 
-    // 👉 sécurité : on ne parse QUE les fichiers JSON ici
+  if (!fs.existsSync(absolute)) {
+    console.warn("⚠️ Path does not exist:", absolute);
+    return [];
+  }
+
+  function scan(currentPath: string): unknown[] {
+    const stat = fs.statSync(currentPath);
+
     if (stat.isFile()) {
-      if (!dir.endsWith(".json")) return [];
+      if (!currentPath.endsWith(".json")) {
+        console.log("⏭️ Non-JSON file skipped:", currentPath);
+        return [];
+      }
 
-      const parsed = safeParse(dir);
+      const parsed = safeParse(currentPath);
       return parsed ? [parsed] : [];
     }
 
-    const entries = fs.readdirSync(dir);
+    console.log("📁 Scanning directory:", currentPath);
+
     const results: unknown[] = [];
 
-    for (const entry of entries) {
-      const full = path.join(dir, entry);
-      const s = fs.statSync(full);
-
-      if (s.isDirectory()) {
-        results.push(...scan(full));
-      } else if (entry.endsWith(".json")) {
-        const parsed = safeParse(full);
-        if (parsed) results.push(parsed);
-      }
-
-      // option anti-OOM (décommentable)
-      // if (results.length >= 1000) break;
+    for (const entry of fs.readdirSync(currentPath)) {
+      const full = path.join(currentPath, entry);
+      results.push(...scan(full));
     }
 
     return results;
   }
 
-  return scan(absolute);
+  const results = scan(absolute);
+
+  console.log("✅ Total JSON files loaded:", results.length);
+
+  return results;
 }

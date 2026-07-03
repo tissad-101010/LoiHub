@@ -1,30 +1,49 @@
-export function parseDeputy(raw: any) {
-  // 🔥 cas 1: acteur
-  const acteurUid = raw.acteur?.uid?.["#text"];
-  if (acteurUid) {
-    const ident = raw.acteur?.etatCivil?.ident;
+type DeputyRaw = {
+  acteur?: {
+    uid?: { '#text'?: string } | string;
+    etatCivil?: {
+      ident?: {
+        nom?: string;
+        prenom?: string;
+      };
+    };
+  };
+  deport?: {
+    uid?: string | number;
+    refActeur?: string | number;
+  };
+};
+
+export function parseDeputy(raw: unknown) {
+  const input = raw as DeputyRaw | null | undefined;
+  const acteur = input?.acteur;
+  const uid = typeof acteur?.uid === 'object' ? acteur.uid?.["#text"] : acteur?.uid;
+
+  if (uid) {
+    const ident = acteur?.etatCivil?.ident;
+
+    const name = ident
+      ? `${ident.nom ?? ""} ${ident.prenom ?? ""}`.trim()
+      : String(uid);
 
     return {
-      uid: acteurUid,
-      name: ident ? `${ident.nom} ${ident.prenom}` : acteurUid,
+      uid: String(uid),
+      name,
       group: null,
-      raw,
+      raw: input,
     };
   }
 
-  // 🔥 cas 2: deport (ABSENCE / EVENT)
-  const deportUid = raw.deport?.uid;
-  const refActeur = raw.deport?.refActeur;
+  const deport = input?.deport;
 
-  if (deportUid && refActeur) {
+  if (deport?.uid && deport?.refActeur) {
     return {
-      uid: deportUid, // ou refActeur selon ton modèle métier
-      name: `deport-${refActeur}`,
+      uid: String(deport.uid),
+      name: `deport-${deport.refActeur}`,
       group: null,
-      raw,
+      raw: input,
     };
   }
 
-  // ❌ cas inconnu
   return null;
 }

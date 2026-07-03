@@ -1,19 +1,29 @@
 import {
-  // importDeputies,
-  // importLaws,
-  // importDossiers,
+  importDeputies,
+  importDossiers,
+  importLaws,
   importAmendments,
+  linkDossiersToLaws,
 } from "./importer.service";
 
 async function main() {
   console.log("🚀 LoiHub Import Starting...");
 
-  // await importDeputies();
-  // await importLaws();
-  // await importDossiers();
+  await importDeputies();
+  await importDossiers();
+  await importLaws();
+  await linkDossiersToLaws();
   await importAmendments();
 
   console.log("🎉 Import finished successfully");
 }
 
-main();
+main()
+  .catch((error) => {
+    console.error("💥 Import failed:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    const { prisma } = await import("../../lib/prisma");
+    await prisma.$disconnect();
+  });

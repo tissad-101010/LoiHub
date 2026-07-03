@@ -1,13 +1,14 @@
-function extractTitle(value: any): string | null {
+function extractTitle(value: unknown): string | null {
   if (!value) return null;
-
   if (typeof value === "string") return value;
 
-  if (typeof value === "object") {
+  if (typeof value === "object" && value !== null) {
+    const obj = value as Record<string, unknown>;
     return (
-      value.libelleCourt ??
-      value.nomCanonique ??
-      value.titre ??
+      (obj.titre as string | undefined) ??
+      (obj.titreChemin as string | undefined) ??
+      (obj.libelleCourt as string | undefined) ??
+      (obj.nomCanonique as string | undefined) ??
       null
     );
   }
@@ -15,30 +16,18 @@ function extractTitle(value: any): string | null {
   return null;
 }
 
-export function parseDossier(raw: any) {
-  const d = raw?.dossierParlementaire;
+export function parseDossier(raw: unknown) {
+  const d = (raw as Record<string, unknown> | undefined)?.dossierParlementaire;
+  if (!d || typeof d !== "object") return null;
 
-  if (!d || typeof d !== "object") {
-    console.warn("parseDossier: invalid dossierParlementaire field", raw);
-    return null;
-  }
+  const dObj = d as Record<string, unknown>;
+  const uid = dObj.uid ?? dObj.dossierRef ?? null;
+  if (!uid) return null;
 
-  const id = d.uid || d.dossierRef;
-
-  if (!id) {
-    console.warn("parseDossier: missing id (uid or dossierRef)", raw);
-    return null;
-  }
-
-  const title = extractTitle(d.titreDossier ?? d.titre);
-
-  if (!title) {
-    console.warn("parseDossier: missing title", raw);
-    return null;
-  }
+  const title = extractTitle(dObj.titreDossier ?? dObj.titre) ?? String(uid);
 
   return {
-    id,
+    uid: String(uid),
     title,
     raw,
   };

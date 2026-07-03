@@ -1,10 +1,31 @@
-export function extractUIDs(obj: any, acc: string[] = []) {
+export function toArray<T>(value: T | T[] | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+export function extractTextRefs(obj: unknown, acc = new Set<string>()) {
   if (!obj || typeof obj !== "object") return acc;
 
-  for (const v of Object.values(obj)) {
-    if (v && typeof v === "object") {
-      if ("uid" in v && typeof v.uid === "string") acc.push(v.uid);
-      extractUIDs(v, acc);
+  if (Array.isArray(obj)) {
+    for (const item of obj) extractTextRefs(item, acc);
+    return acc;
+  }
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (
+      typeof value === "string" &&
+      [
+        "texteAssocie",
+        "texteAdopte",
+        "refTexteAssocie",
+        "texteLegislatifRef",
+      ].includes(key)
+    ) {
+      acc.add(value);
+    }
+
+    if (value && typeof value === "object") {
+      extractTextRefs(value, acc);
     }
   }
 
