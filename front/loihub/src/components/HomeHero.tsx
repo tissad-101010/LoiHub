@@ -89,11 +89,11 @@ export default function HomeHero() {
             <path d="M5 10v8M9 10v8M15 10v8M19 10v8" strokeLinecap="round" />
             <path d="M4 20h16" strokeLinecap="round" />
           </svg>
-          Assemblée nationale
+          Exemple
         </div>
 
         <div className="mb-2 text-xs text-white/40">
-          Exemple : Article 12 — Projet de loi pour le logement abordable
+          Article 12 — Projet de loi pour le logement abordable
         </div>
 
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">

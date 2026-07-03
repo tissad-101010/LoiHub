@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = ["Explorer les lois", "Députés"];
+const NAV = ["Explorer les lois"];
 
 export default function SiteHeader() {
   const pathname = usePathname();
