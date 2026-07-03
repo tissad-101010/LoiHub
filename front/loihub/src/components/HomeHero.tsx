@@ -92,6 +92,10 @@ export default function HomeHero() {
           Assemblée nationale
         </div>
 
+        <div className="mb-2 text-xs text-white/40">
+          Exemple : Article 12 — Projet de loi pour le logement abordable
+        </div>
+
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-white">Amendement n°452</span>
