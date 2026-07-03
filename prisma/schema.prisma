@@ -47,7 +47,20 @@ model Deputy {
   createdAt DateTime @default(now())
 }
 
+model Article {
+  id        String   @id @default(cuid())
 
+  uid       String?  @unique
+  number    String?
+  title     String?
+  content   String
+  raw       Json?
+
+  lawId     String
+  law       Law @relation(fields: [lawId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
 
 //dossiers
 
@@ -99,6 +112,8 @@ model Law {
   amendments  Amendment[]
   debates     Debate[]
   votes       Vote[]
+  articles    Article[]
+
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -115,6 +130,7 @@ model LawVersion {
 
   lawId     String
   law       Law @relation(fields: [lawId], references: [id], onDelete: Cascade)
+  @@unique([lawId, version])
 
   createdAt DateTime @default(now())
 }
