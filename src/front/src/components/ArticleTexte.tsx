@@ -1,6 +1,7 @@
 import { Article, Amendement, DiffLigne } from "@/lib/types";
 import { badgeStatutClass } from "@/lib/ui";
 import DiffViewer from "./DiffViewer";
+import TexteDiff from "./TexteDiff";
 
 export default function ArticleTexte({
   article,
@@ -23,6 +24,10 @@ export default function ArticleTexte({
         )}
       </div>
       <p className="mb-4 text-sm leading-relaxed text-slate-700">{article.texte}</p>
+
+      {article.diffTexte && article.diffTexte.length > 0 && (
+        <TexteDiff diff={article.diffTexte} info={article.diffTexteInfo} />
+      )}
 
       {am?.resumeIA && (
         <div className="rounded-lg bg-blue-50 p-4">
