@@ -32,7 +32,7 @@ services:
 
   web:
     build:
-      context: ./front/loihub
+      context: ./src/front
     container_name: loihub-web
     restart: unless-stopped
     depends_on:
