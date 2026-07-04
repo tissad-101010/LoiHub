@@ -1,6 +1,5 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import HomeSearch from "@/components/HomeSearch";
 import HomeHero from "@/components/HomeHero";
 import LoiCard from "@/components/LoiCard";
 import { getLoisEnCours } from "@/lib/data";
@@ -14,8 +13,6 @@ export default async function Home() {
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-10 p-6">
-        <HomeSearch />
-
         <HomeHero />
 
         <div>
