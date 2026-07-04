@@ -82,6 +82,50 @@ export interface ProjetLoi {
   articles: Article[];
 }
 
+// Un texte (dossier) déposé/initié par un député, pour sa fiche.
+export interface TexteDepose {
+  uid: string;
+  titre: string;
+  type: string; // "Proposition de loi", "Proposition de résolution", ...
+  date: string;
+  amendements: number;
+}
+
+// Un vote nominatif d'un député (dataset scrutins — pas encore importé).
+export interface VoteDepute {
+  objet: string;
+  position: "Pour" | "Contre" | "Abstention";
+  date: string;
+  loiUid?: string;
+}
+
+// Fiche complète d'un député (page /depute/[id]).
+export interface DeputeProfil {
+  id: string;
+  nom: string; // "Prénom Nom"
+  prenom: string;
+  nomFamille: string;
+  civilite: string; // "M." / "Mme"
+  groupe: string; // abréviation AN
+  groupeLibelle?: string; // libellé complet du groupe si connu
+  couleur: string;
+  photoUrl?: string;
+  circonscription?: string; // "Gironde (4e circonscription)"
+  dateDebutMandat?: string; // date de prise de fonction, formatée
+  dateDebutMandatIso?: string;
+  premiereElection: boolean; // législature en cours = 1er mandat ?
+  fonction?: string; // qualité principale (président de groupe, rapporteur…)
+  stats: {
+    amendements: number;
+    amendementsAdoptes: number;
+    textesDeposes: number;
+    votes: number;
+  };
+  derniersAmendements: (Amendement & { dossierUid?: string; dossierTitre?: string })[];
+  textesDeposes: TexteDepose[];
+  votes: VoteDepute[];
+}
+
 export type IconeThematique = "logement" | "energie" | "numerique";
 
 export interface LoiResume {

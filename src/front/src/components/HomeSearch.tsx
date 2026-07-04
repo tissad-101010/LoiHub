@@ -35,7 +35,7 @@ function toItems(r: SearchResponse): Item[] {
   for (const p of r.deputes) {
     items.push({
       kind: "depute",
-      href: "#",
+      href: `/depute/${encodeURIComponent(p.id)}`,
       titre: p.nom,
       meta: p.groupe ?? "Groupe inconnu",
     });

@@ -19,6 +19,8 @@ import type {
   ActeurEtape,
   StatutAmendement,
   Depute,
+  DeputeProfil,
+  TexteDepose,
   DiffLigne,
   LoiResume,
   IconeThematique,
@@ -516,6 +518,218 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
       heuresDebat: 0, // dataset débats non importé
     },
     articles,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Fiche d'un député (page /depute/[id])                              */
+/* ------------------------------------------------------------------ */
+
+// Libellés complets des groupes (abréviation AN, législature 17).
+const GROUPE_LIBELLE: Record<string, string> = {
+  RN: "Rassemblement National",
+  UDR: "Union des droites pour la République",
+  DR: "Droite Républicaine",
+  LR: "Les Républicains",
+  EPR: "Ensemble pour la République",
+  RE: "Renaissance",
+  ENS: "Ensemble pour la République",
+  DEM: "Les Démocrates",
+  HOR: "Horizons & Indépendants",
+  LIOT: "Libertés, Indépendants, Outre-mer et Territoires",
+  SOC: "Socialistes et apparentés",
+  EcoS: "Écologiste et Social",
+  ECO: "Écologiste et Social",
+  "LFI-NFP": "La France insoumise — Nouveau Front Populaire",
+  LFI: "La France insoumise",
+  GDR: "Gauche Démocrate et Républicaine",
+  NI: "Non inscrits",
+};
+
+// mandat "ASSEMBLEE" (le siège de député) parmi tous les mandats de l'acteur
+function mandatAssemblee(acteur: any): any {
+  return asArray(acteur?.mandats?.mandat).find((m) => m?.typeOrgane === "ASSEMBLEE");
+}
+
+// "Gironde (4e circonscription)" à partir de election.lieu (1re, 2e, 3e…)
+function libelleCirconscription(mandat: any): string | undefined {
+  const lieu = mandat?.election?.lieu;
+  if (!lieu?.departement) return undefined;
+  const n = lieu.numCirco;
+  const ordinal = n ? (n === "1" ? "1re" : `${n}e`) : "";
+  const circo = ordinal ? ` (${ordinal} circonscription)` : "";
+  return `${lieu.departement}${circo}`;
+}
+
+// Titre institutionnel le plus prestigieux ACTIF du député (dateFin nulle).
+// On ignore les groupes d'amitié (GA) / d'études (GE), non significatifs ici.
+// Renvoie undefined pour un simple membre (rien à afficher).
+function fonctionInstitutionnelle(acteur: any, feminin: boolean): string | undefined {
+  const mandats = asArray(acteur?.mandats?.mandat).filter((m) => !m?.dateFin);
+  const qualite = (m: any) => (m?.infosQualite?.libQualite ?? "").toLowerCase();
+  const has = (org: string, pred: (q: string) => boolean) =>
+    mandats.some((m) => m?.typeOrgane === org && pred(qualite(m)));
+
+  const vp = feminin ? "Vice-présidente" : "Vice-président";
+  const pr = feminin ? "Présidente" : "Président";
+
+  // BUREAU = bureau de l'Assemblée (Président·e / Vice-président·e de l'AN)
+  if (has("BUREAU", (q) => q.startsWith("président") && q.includes("assemblée")))
+    return `${pr} de l'Assemblée nationale`;
+  if (has("BUREAU", (q) => q.startsWith("vice-président") && q.includes("assemblée")))
+    return `${vp} de l'Assemblée nationale`;
+  // GP = groupe politique
+  if (has("GP", (q) => q.startsWith("président"))) return `${pr} de groupe`;
+  // COMPER = commission permanente
+  if (has("COMPER", (q) => q.startsWith("président"))) return `${pr} de commission`;
+  if (has("GP", (q) => q.startsWith("vice-président"))) return `${vp} de groupe`;
+  if (has("COMPER", (q) => q.startsWith("vice-président"))) return `${vp} de commission`;
+  return undefined;
+}
+
+// Type de dossier lisible, déduit de son intitulé (l'open data ne fournit pas de code type fiable).
+function typeDossier(titre: string): string {
+  const t = titre.toLowerCase();
+  if (t.startsWith("proposition de loi")) return "Proposition de loi";
+  if (t.startsWith("proposition de résolution")) return "Proposition de résolution";
+  if (t.startsWith("projet de loi")) return "Projet de loi";
+  return "Texte déposé";
+}
+
+export async function getDepute(uid: string): Promise<DeputeProfil | null> {
+  const row = await prisma.deputy.findUnique({
+    where: { uid },
+    select: { uid: true, name: true, group: true, raw: true },
+  });
+  if (!row) return null;
+
+  const acteur = (row.raw as any)?.acteur ?? {};
+  const ident = acteur?.etatCivil?.ident ?? {};
+  const prenom = ident.prenom ?? "";
+  const nomFamille = ident.nom ?? "";
+  const nomComplet = [prenom, nomFamille].filter(Boolean).join(" ") || row.name;
+
+  const mandat = mandatAssemblee(acteur);
+  const dateDebutIso = mandat?.mandature?.datePriseFonction ?? mandat?.dateDebut ?? undefined;
+  const feminin = (ident.civ ?? "") === "Mme";
+  const fonction = fonctionInstitutionnelle(acteur, feminin);
+
+  const group = row.group ?? null;
+
+  // --- Amendements récents (les plus récents d'abord) ---
+  const amendementsRows = await prisma.amendment.findMany({
+    where: { authorId: uid },
+    select: {
+      uid: true,
+      numeroLong: true,
+      numeroOrdreDepot: true,
+      article: true,
+      status: true,
+      sort: true,
+      dateDepot: true,
+      dateSort: true,
+      authorId: true,
+      law: { select: { dossier: { select: { uid: true, title: true } } } },
+    },
+    orderBy: { dateDepot: "desc" },
+    take: 20,
+  });
+
+  // total + adoptés (compteur global, séparé de la liste bornée à 20)
+  const [totalAmdt, totalAdoptes] = await Promise.all([
+    prisma.amendment.count({ where: { authorId: uid } }),
+    prisma.amendment.count({ where: { authorId: uid, status: "ACCEPTED" } }),
+  ]);
+
+  // le député lui-même comme auteur (nom + couleur cohérents avec la fiche)
+  const selfDepute: DeputeMap = new Map([
+    [
+      uid,
+      { name: nomComplet, group, photoUrl: photoParlementaireUrl(uid), institution: "assemblee" as const },
+    ],
+  ]);
+  const derniersAmendements = amendementsRows.map((a) => ({
+    ...mapAmendement(a as AmendmentRow, selfDepute),
+    dossierUid: a.law?.dossier?.uid ?? undefined,
+    dossierTitre: a.law?.dossier?.title ?? undefined,
+  }));
+
+  // --- Textes déposés (dossiers dont il est initiateur) ---
+  // Le filtrage se fait EN SQL : on déplie initiateur.acteurs.acteur (objet OU
+  // tableau, d'où le jsonb_typeof) et on ne remonte QUE les uid des dossiers
+  // concernés + leur nb d'amendements. On ne rapatrie jamais les gros blobs raw
+  // de tous les dossiers (ce qui saturait la connexion).
+  const initiesRows = await prisma.$queryRaw<{ uid: string; title: string | null; n: bigint }[]>`
+    SELECT d."uid" AS uid, d."title" AS title, COUNT(a.id) AS n
+    FROM "Dossier" d
+    LEFT JOIN "Law" l ON l."dossierId" = d.id
+    LEFT JOIN "Amendment" a ON a."lawId" = l.id
+    WHERE d."uid" IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(
+          CASE jsonb_typeof(d."raw"->'dossierParlementaire'->'initiateur'->'acteurs'->'acteur')
+            WHEN 'array'  THEN d."raw"->'dossierParlementaire'->'initiateur'->'acteurs'->'acteur'
+            WHEN 'object' THEN jsonb_build_array(d."raw"->'dossierParlementaire'->'initiateur'->'acteurs'->'acteur')
+            ELSE '[]'::jsonb
+          END
+        ) elem
+        WHERE elem->>'acteurRef' = ${uid}
+      )
+    GROUP BY d."uid", d."title"
+  `;
+
+  // Dates : on ne relit le raw QUE des dossiers retenus (petit nombre) pour
+  // reconstruire la date de dépôt via le parcours.
+  const initiesUids = initiesRows.map((r) => r.uid);
+  const rawByUid = new Map<string, any>();
+  if (initiesUids.length) {
+    for (const d of await prisma.dossier.findMany({
+      where: { uid: { in: initiesUids } },
+      select: { uid: true, raw: true },
+    })) {
+      rawByUid.set(d.uid as string, d.raw);
+    }
+  }
+  const textesDeposes: TexteDepose[] = initiesRows
+    .map((r) => {
+      const dp = (rawByUid.get(r.uid) as any)?.dossierParlementaire ?? {};
+      const parcours = buildParcours(dp);
+      const titre = r.title ?? "Dossier législatif";
+      return {
+        uid: r.uid,
+        titre,
+        type: typeDossier(titre),
+        date: parcours.find((e) => e.date)?.date ?? "",
+        amendements: Number(r.n),
+      };
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  return {
+    id: uid,
+    nom: nomComplet,
+    prenom,
+    nomFamille,
+    civilite: ident.civ ?? "",
+    groupe: group ?? "",
+    groupeLibelle: group ? GROUPE_LIBELLE[group] : undefined,
+    couleur: couleurGroupe(group),
+    photoUrl: photoParlementaireUrl(uid),
+    circonscription: libelleCirconscription(mandat),
+    dateDebutMandat: formatDate(dateDebutIso),
+    dateDebutMandatIso: typeof dateDebutIso === "string" ? dateDebutIso : undefined,
+    premiereElection: mandat?.mandature?.premiereElection === "1",
+    fonction,
+    stats: {
+      amendements: totalAmdt,
+      amendementsAdoptes: totalAdoptes,
+      textesDeposes: textesDeposes.length,
+      votes: 0, // dataset scrutins non importé
+    },
+    derniersAmendements,
+    textesDeposes,
+    votes: [], // dataset scrutins non importé -> section "à venir"
   };
 }
 
