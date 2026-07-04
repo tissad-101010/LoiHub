@@ -126,10 +126,11 @@ function buildParcours(dp: any): EtapeParcours[] {
 /* ------------------------------------------------------------------ */
 
 type AmendmentRow = {
+  uid?: string;
   numeroLong: string | null;
   numeroOrdreDepot: string | null;
   article: string | null;
-  content: string | null;
+  content?: string | null; // chargé à la demande (pas en masse)
   status: string;
   sort: string | null;
   dateDepot: Date | null;
@@ -168,7 +169,7 @@ export type DeputeMap = Map<string, { name: string; group: string | null }>;
 // L'open data AN ne donne pas le texte de loi ; on affiche donc CE QUE
 // l'amendement modifie, extrait de sa rédaction juridique normalisée.
 function buildDiff(
-  content: string | null
+  content: string | null | undefined
 ): { avant: DiffLigne[]; apres: DiffLigne[] } | undefined {
   const texte = stripHtml(content);
   if (!texte) return undefined;
@@ -302,10 +303,12 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
   const amendements = await prisma.amendment.findMany({
     where: { law: { dossierId: dossier.id } },
     select: {
+      uid: true,
       numeroLong: true,
       numeroOrdreDepot: true,
       article: true,
-      content: true,
+      // content NON chargé en masse (14k blobs = lent) ; récupéré plus bas
+      // uniquement pour les amendements réellement affichés.
       status: true,
       sort: true,
       dateDepot: true,
@@ -357,6 +360,7 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
     parArticle.get(key)!.push(a);
   }
 
+  const uidActuelParNumero = new Map<string, string>();
   const articles: Article[] = [...parArticle.entries()]
     // top articles par nombre réel d'amendements, puis bornés
     .sort((a, b) => b[1].length - a[1].length)
@@ -364,6 +368,7 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
     .map(([numero, rows]) => {
       const adoptes = rows.filter((r) => r.status === "ACCEPTED");
       const dernierAdopte = adoptes[adoptes.length - 1];
+      if (dernierAdopte?.uid) uidActuelParNumero.set(numero, dernierAdopte.uid);
       // on borne l'historique envoyé au client (les gros dossiers ont des
       // centaines d'amendements par article)
       const historique = rows.slice(0, MAX_HISTO).map((r) => mapAmendement(r, deputes));
@@ -407,6 +412,25 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
         diffTexteInfo: dt ? { avant: dt.avant, apres: dt.apres } : undefined,
       } as Article;
     });
+
+  // contenu (dispositif) chargé UNIQUEMENT pour les amendements affichés (~60),
+  // pas pour les 14k -> gros gain de perf sur la page loi.
+  const uidsActuels = [...uidActuelParNumero.values()];
+  if (uidsActuels.length) {
+    const contenus = await prisma.amendment.findMany({
+      where: { uid: { in: uidsActuels } },
+      select: { uid: true, content: true },
+    });
+    const contentByUid = new Map(contenus.map((c) => [c.uid, c.content]));
+    for (const art of articles) {
+      const u = uidActuelParNumero.get(art.numero);
+      const c = u ? contentByUid.get(u) : null;
+      if (c && art.amendementActuel) {
+        art.amendementActuel.resumeIA = stripHtml(c) || undefined;
+        art.amendementActuel.diff = buildDiff(c);
+      }
+    }
+  }
 
   const adoptes = amendements.filter((a) => a.status === "ACCEPTED").length;
   const auteurs = new Set(amendements.map((a) => a.authorId).filter(Boolean));
