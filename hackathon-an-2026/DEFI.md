@@ -2,7 +2,8 @@
 
 ### Nom du défi
 LoiHub, Le Hub de la loi
-
+### Démo en ligne
+https://p2vdu3d4me.eu-west-3.awsapprunner.com/
 ### Description courte
 LoiHub est une plateforme qui permet d’explorer les lois françaises comme si elles étaient du code source versionné.
 
@@ -42,8 +43,7 @@ Explorer la chronologie complète d’un texte : dépôt, commissions, séances,
 - Explications IA
 Résumer les changements complexes en langage simple pour les citoyens.
 
-### Démo en ligne
-https://p2vdu3d4me.eu-west-3.awsapprunner.com/
+
 
 ### Image principale
 ![LoiHub](images/coverLH.png)
