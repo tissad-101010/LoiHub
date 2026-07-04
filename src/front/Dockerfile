@@ -7,9 +7,21 @@ RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 
 # deps (prisma/ copié avant pour que le postinstall `prisma generate` réussisse)
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm install --no-audit --no-fund
+
+# Réglages réseau tolérants : le build a déjà échoué sur des ECONNRESET
+# transitoires -> on augmente retries et timeouts, et on garde le cache npm
+# entre builds pour ne pas re-télécharger.
+# NB: `npm install` (pas `npm ci`) car le lockfile est généré sur macos/arm64 et
+# n'inclut pas les deps optionnelles natives de linux/alpine (@emnapi/*).
+RUN npm config set fetch-retries 5 \
+ && npm config set fetch-retry-factor 4 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 120000 \
+ && npm config set fetch-timeout 600000
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --no-audit --no-fund
 
 # code + build
 COPY . .
