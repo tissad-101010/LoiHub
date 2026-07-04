@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DiffLigne } from "@/lib/types";
 
 // diff ligne-à-ligne (LCS) entre deux listes d'alinéas -> DiffLigne[]
@@ -34,9 +34,10 @@ import ArticleTexte from "@/components/ArticleTexte";
 import HistoriqueAmendements from "@/components/HistoriqueAmendements";
 import Influenceurs from "@/components/Influenceurs";
 import TexteLoiComplet from "@/components/TexteLoiComplet";
-import { Amendement, ProjetLoi, StatutAmendement } from "@/lib/types";
+import { Amendement, Depute, ProjetLoi, StatutAmendement } from "@/lib/types";
 
 type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
+type ArticleDetail = { historique: Amendement[]; influenceurs: { depute: Depute; part: number }[] };
 
 const numeroFromLabel = (label: string) => label.replace("Article ", "");
 
@@ -68,8 +69,40 @@ export default function LoiPageClient({
   const estVueSimple = etape?.acteur === "promulgation" || etape?.acteur === "depot";
   const article = articles.find((a) => a.numero === articleActifNumero);
 
-  const historique = article?.historique ?? [];
-  const influenceurs = article?.influenceurs ?? [];
+  // Historique + influenceurs de l'article actif : hors du payload initial
+  // (page loi allégée), chargés à la demande via GET /api/article et mis en
+  // cache par numéro d'article pour ne pas refetcher au re-clic.
+  const [details, setDetails] = useState<Record<string, ArticleDetail>>({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const enrichi = article ? details[article.numero] : undefined;
+
+  useEffect(() => {
+    // on ne charge le détail que lorsqu'on explore un article à une étape précise
+    if (!articleActifNumero || etape === null || estVueSimple) return;
+    if (details[articleActifNumero]) return; // déjà en cache
+    let annule = false;
+    setDetailLoading(true);
+    fetch(
+      `/api/article?dossier=${encodeURIComponent(projet.numero)}&numero=${encodeURIComponent(articleActifNumero)}`
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: ArticleDetail) => {
+        if (!annule) setDetails((prev) => ({ ...prev, [articleActifNumero]: data }));
+      })
+      .catch(() => {
+        if (!annule)
+          setDetails((prev) => ({ ...prev, [articleActifNumero]: { historique: [], influenceurs: [] } }));
+      })
+      .finally(() => {
+        if (!annule) setDetailLoading(false);
+      });
+    return () => {
+      annule = true;
+    };
+  }, [articleActifNumero, etape, estVueSimple, details, projet.numero]);
+
+  const historique = enrichi?.historique ?? [];
+  const influenceurs = enrichi?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
   const diff = amendementAffiche?.diff;
 
@@ -127,7 +160,6 @@ export default function LoiPageClient({
         {(!etape || estVueSimple) && (
           <TexteLoiComplet
             titreLoi={loi.titre}
-            version={etape ? etape.version : loi.version}
             articles={articles}
             sommaire={sommaire}
           />
@@ -157,14 +189,22 @@ export default function LoiPageClient({
               </div>
             </div>
 
-            <HistoriqueAmendements
-              historique={historique}
-              amendementActifNumero={amendementAffiche?.numero}
-              etapeDate={etape.date}
-              onSelect={setAmendementActif}
-            />
+            {detailLoading && !enrichi ? (
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-slate-500">
+                Chargement de l&apos;historique des amendements…
+              </div>
+            ) : (
+              <>
+                <HistoriqueAmendements
+                  historique={historique}
+                  amendementActifNumero={amendementAffiche?.numero}
+                  etapeDate={etape.date}
+                  onSelect={setAmendementActif}
+                />
 
-            <Influenceurs influenceurs={influenceurs} />
+                <Influenceurs influenceurs={influenceurs} />
+              </>
+            )}
           </>
         )}
       </main>
