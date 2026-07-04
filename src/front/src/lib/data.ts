@@ -269,9 +269,7 @@ function buildDiff(
   return undefined; // formulation non reconnue -> DiffViewer montre la prose
 }
 
-// withContent : n'inclure le dispositif (lourd) que pour l'amendement affiché,
-// pas pour toute la liste d'historique (sinon payload de plusieurs Mo).
-function mapAmendement(a: AmendmentRow, deputes: DeputeMap, withContent = false): Amendement {
+function mapAmendement(a: AmendmentRow, deputes: DeputeMap): Amendement {
   const auteur = deputeFromId(a.authorId, deputes);
   return {
     numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
@@ -279,7 +277,6 @@ function mapAmendement(a: AmendmentRow, deputes: DeputeMap, withContent = false)
     statut: toStatut(a.status, a.sort),
     dateDepot: formatDate(a.dateDepot?.toISOString()),
     dateAdoption: a.status === "ACCEPTED" ? formatDate(a.dateSort?.toISOString()) : undefined,
-    resumeIA: withContent ? stripHtml(a.content) || undefined : undefined,
     // diff rouge/vert extrait du dispositif de l'amendement
     diff: buildDiff(a.content),
   };
@@ -465,7 +462,7 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
         texte:
           texteArticle(numero) ??
           "Le texte de cet article n'est pas encore disponible. Vous pouvez consulter ci-dessous les amendements qui le concernent.",
-        amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, true) : undefined,
+        amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes) : undefined,
         // historique + influenceurs + versionsTexte NE sont PAS dans le payload
         // initial : ils ne servent que pour l'article actif (après sélection
         // d'une étape) et pesaient l'essentiel des ~3 Mo (dont ~1,6 Mo de texte
@@ -502,7 +499,6 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
       const u = uidActuelParNumero.get(art.numero);
       const c = u ? contentByUid.get(u) : null;
       if (c && art.amendementActuel) {
-        art.amendementActuel.resumeIA = stripHtml(c) || undefined;
         art.amendementActuel.diff = buildDiff(c);
       }
     }
