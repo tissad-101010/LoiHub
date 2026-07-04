@@ -1,4 +1,10 @@
-export type StatutAmendement = "Adopté" | "Rejeté" | "Retiré";
+export type StatutAmendement =
+  | "Adopté"
+  | "Rejeté"
+  | "Retiré"
+  | "Tombé"
+  | "Non soutenu"
+  | "En discussion";
 
 export interface Depute {
   id: string;
@@ -40,6 +46,8 @@ export interface Article {
   amendementActuel?: Amendement;
   historique: Amendement[];
   influenceurs: { depute: Depute; part: number }[];
+  diffTexte?: DiffLigne[];
+  diffTexteInfo?: { avant: string; apres: string };
 }
 
 export interface ProjetLoi {

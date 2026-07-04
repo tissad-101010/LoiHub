@@ -3,10 +3,12 @@ import SiteHeader from "@/components/SiteHeader";
 import HomeSearch from "@/components/HomeSearch";
 import HomeHero from "@/components/HomeHero";
 import LoiCard from "@/components/LoiCard";
-import { getLoisEnCours } from "@/lib/queries";
+import { getLoisEnCours } from "@/lib/data";
 
-export default function Home() {
-  const lois = getLoisEnCours();
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const lois = await getLoisEnCours();
 
   return (
     <div className="min-h-screen">

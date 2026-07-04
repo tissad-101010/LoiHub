@@ -1,13 +1,16 @@
 "use client";
-import { sommaire } from "@/lib/mock-data";
 import { StatutAmendement } from "@/lib/types";
 import { dotStatutClass } from "@/lib/ui";
 
+type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
+
 export default function Sommaire({
+  sommaire,
   articleActif,
   statutParArticle,
   onSelect,
 }: {
+  sommaire: SommaireData;
   articleActif: string;
   statutParArticle?: Record<string, StatutAmendement>;
   onSelect: (article: string) => void;
