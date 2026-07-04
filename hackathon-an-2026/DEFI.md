@@ -1,7 +1,7 @@
 # Template DEFI.md
 
 ### Nom du défi
-LoiHub, Le Github de la loi
+LoiHub, Le Hub de la loi
 
 ### Description courte
 LoiHub est une plateforme qui permet d’explorer les lois françaises comme si elles étaient du code source versionné.

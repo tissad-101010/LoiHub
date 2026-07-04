@@ -42,7 +42,7 @@ export default function AProposPage() {
       <main className="mx-auto max-w-3xl space-y-6 p-6">
         <div className="rounded-2xl bg-slate-900 p-8 text-white">
           <h1 className="text-2xl font-bold">LoiHub</h1>
-          <p className="text-blue-300">Le GitHub de la loi</p>
+          <p className="text-blue-300">Le Hub de la loi</p>
           <p className="mt-4 text-sm italic text-white/70">
             Suivre une loi comme on suit un dépôt de code : commits, diffs, contributeurs.
           </p>

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "LoiHub",
-  description: "Le GitHub de la loi — suivre l'évolution des lois comme un dépôt de code.",
+  description: "Le Hub de la loi — suivre l'évolution des lois comme un dépôt de code.",
 };
 
 export default function RootLayout({
