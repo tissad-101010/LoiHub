@@ -71,7 +71,7 @@ function Icone({ kind }: { kind: Item["kind"] }) {
   );
 }
 
-export default function HomeSearch() {
+export default function HomeSearch({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -169,8 +169,12 @@ export default function HomeSearch() {
   const indexOf = (item: Item) => items.indexOf(item);
 
   return (
-    <div ref={rootRef} className="relative mx-auto max-w-2xl">
-      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-100">
+    <div ref={rootRef} className={compact ? "relative w-full" : "relative mx-auto max-w-2xl"}>
+      <div
+        className={`flex items-center gap-2 rounded-xl border border-gray-200 bg-white focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-100 ${
+          compact ? "p-1.5" : "p-2 shadow-sm"
+        }`}
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-2 h-4 w-4 shrink-0 text-gray-400">
           <circle cx="11" cy="11" r="7" />
           <path d="M21 21l-4.3-4.3" strokeLinecap="round" />
@@ -248,7 +252,7 @@ export default function HomeSearch() {
       )}
 
       {/* Exemples populaires (sous la barre, quand pas de dropdown) */}
-      {!showDropdown && (
+      {!compact && !showDropdown && (
         <div className="mt-3 text-center text-xs text-gray-500">
           Exemples populaires :{" "}
           {EXEMPLES.map((ex, i) => (
