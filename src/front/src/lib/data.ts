@@ -1,0 +1,565 @@
+// Couche d'accès aux données RÉELLES (server-only) : reconstruit un ProjetLoi
+// depuis la base Postgres (dossiers + lois/versions + amendements de l'open data AN).
+//
+// Limites assumées (l'open data AN ne fournit pas ces éléments) :
+//  - texte articulé des lois -> non disponible (divisions vides). On affiche le
+//    dispositif de l'amendement comme contenu, avec une mention explicite.
+//  - diff ligne-à-ligne -> non calculable (les amendements sont en prose).
+//  - noms/groupes des députés -> dataset "acteurs" non importé -> on affiche la
+//    référence AN de l'auteur.
+//  - votes / heures de débat -> datasets non importés -> 0.
+
+import { prisma } from "./prisma";
+import type {
+  ProjetLoi,
+  Article,
+  Amendement,
+  EtapeParcours,
+  ActeurEtape,
+  StatutAmendement,
+  Depute,
+  DiffLigne,
+  LoiResume,
+  IconeThematique,
+} from "./types";
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+// L'API AN encode souvent "un objet OU un tableau" -> on normalise en tableau.
+function asArray<T>(x: T | T[] | null | undefined): T[] {
+  if (x === null || x === undefined) return [];
+  return Array.isArray(x) ? x : [x];
+}
+
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+function formatDate(v: unknown): string {
+  if (typeof v !== "string" || !v.trim()) return "";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// nettoie le HTML des dispositifs/exposés d'amendement en texte lisible
+function stripHtml(html: unknown): string {
+  if (typeof html !== "string") return "";
+  return html
+    .replace(/<\/(p|div|li)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&laquo;|&#171;/gi, "«")
+    .replace(/&raquo;|&#187;/gi, "»")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// codeActe (SN1, AN1, CMP, ...) -> acteur pour la couleur du parcours
+function acteurFromCode(code: string): ActeurEtape {
+  const c = (code || "").toUpperCase();
+  if (c.includes("DEPOT")) return "depot";
+  if (c.includes("PROMULGATION") || c.includes("PROMUL")) return "promulgation";
+  if (c.includes("CMP") || c.includes("CONSTIT") || c.includes("ADOPT") || c.includes("LECT-DEF")) return "adoption";
+  if (c.includes("COM")) return "commission";
+  if (c.startsWith("AN")) return "assemblee";
+  if (c.startsWith("SN")) return "senat";
+  return "commission";
+}
+
+// statut Prisma + sort AN -> StatutAmendement du front
+function toStatut(status: string, sort: string | null): StatutAmendement {
+  if (status === "ACCEPTED") return "Adopté";
+  if (status === "REJECTED") return "Rejeté";
+  const s = (sort || "").toLowerCase();
+  if (s.includes("retir")) return "Retiré";
+  if (s.includes("tomb")) return "Tombé";
+  if (s.includes("non soutenu")) return "Non soutenu";
+  return "En discussion";
+}
+
+// première date trouvée en profondeur dans un arbre d'actes
+function earliestDate(node: unknown): string | null {
+  let best: string | null = null;
+  const visit = (n: any) => {
+    if (!n || typeof n !== "object") return;
+    if (typeof n.dateActe === "string") {
+      if (!best || n.dateActe < best) best = n.dateActe;
+    }
+    for (const acte of asArray(n?.actesLegislatifs?.acteLegislatif)) visit(acte);
+  };
+  visit(node);
+  return best;
+}
+
+/* ------------------------------------------------------------------ */
+/* Parcours législatif à partir de dossierParlementaire.actesLegislatifs */
+/* ------------------------------------------------------------------ */
+
+function buildParcours(dp: any): EtapeParcours[] {
+  const actes = asArray(dp?.actesLegislatifs?.acteLegislatif);
+  const etapes: EtapeParcours[] = [];
+  let v = 0;
+
+  for (const acte of actes) {
+    const code = acte?.codeActe ?? "";
+    const label = acte?.libelleActe?.nomCanonique ?? acte?.libelleActe?.libelleCourt ?? code ?? "Étape";
+    const dateIso = acte?.dateActe ?? earliestDate(acte);
+    v += 1;
+    etapes.push({
+      label: String(label),
+      date: formatDate(dateIso),
+      fait: !!dateIso && new Date(dateIso).getTime() <= Date.now(),
+      version: `v${v}.0`,
+      acteur: acteurFromCode(code),
+    });
+  }
+  return etapes;
+}
+
+/* ------------------------------------------------------------------ */
+/* Requête principale                                                 */
+/* ------------------------------------------------------------------ */
+
+type AmendmentRow = {
+  numeroLong: string | null;
+  numeroOrdreDepot: string | null;
+  article: string | null;
+  content: string | null;
+  status: string;
+  sort: string | null;
+  dateDepot: Date | null;
+  dateSort: Date | null;
+  authorId: string | null;
+};
+
+// Palette par groupe politique (abréviations AN, législature 17)
+const GROUPE_COULEUR: Record<string, string> = {
+  RN: "#1f4e79",
+  UDR: "#0f2d52",
+  DR: "#2563eb",
+  LR: "#2563eb",
+  "EPR": "#f7b32b",
+  RE: "#f7b32b",
+  ENS: "#f7b32b",
+  DEM: "#f97316",
+  HOR: "#12b3c7",
+  LIOT: "#eab308",
+  SOC: "#e05a8a",
+  "EcoS": "#22c55e",
+  ECO: "#22c55e",
+  "LFI-NFP": "#cc2443",
+  LFI: "#cc2443",
+  GDR: "#b71c1c",
+  NI: "#94a3b8",
+};
+function couleurGroupe(group: string | null): string {
+  if (!group) return "#64748b";
+  return GROUPE_COULEUR[group] ?? "#64748b";
+}
+
+export type DeputeMap = Map<string, { name: string; group: string | null }>;
+
+// Construit un diff rouge/vert à partir du dispositif (prose) de l'amendement.
+// L'open data AN ne donne pas le texte de loi ; on affiche donc CE QUE
+// l'amendement modifie, extrait de sa rédaction juridique normalisée.
+function buildDiff(
+  content: string | null
+): { avant: DiffLigne[]; apres: DiffLigne[] } | undefined {
+  const texte = stripHtml(content);
+  if (!texte) return undefined;
+  const low = texte.toLowerCase();
+
+  const quotes = [...texte.matchAll(/«\s*([^«»]+?)\s*»/g)]
+    .map((m) => m[1].trim())
+    .filter(Boolean)
+    .map((s) => (s.length > 400 ? s.slice(0, 400) + "…" : s));
+
+  // localisation (alinéa N / cet article)
+  const alinea = texte.match(/alin[ée]as?\s*n?°?\s*(\d+)/i);
+  const loc = alinea
+    ? `Alinéa ${alinea[1]} — `
+    : /cet article/i.test(texte)
+      ? "Cet article — "
+      : "";
+  const locLine = (arr: DiffLigne[]): DiffLigne[] =>
+    loc ? [{ numero: 0, texte: loc, type: "inchange" }, ...arr] : arr;
+
+  // suppression d'article entier
+  if (/supprimer cet article/i.test(low)) {
+    return {
+      avant: [{ numero: 1, texte: "Cet article est supprimé.", type: "supprime" }],
+      apres: [],
+    };
+  }
+  // substitution / remplacement : «ancien» -> «nouveau»
+  if (/(substitu|remplac)/i.test(low) && quotes.length >= 2) {
+    return {
+      avant: locLine([{ numero: 1, texte: quotes[0], type: "supprime" }]),
+      apres: locLine([{ numero: 1, texte: quotes[1], type: "ajoute" }]),
+    };
+  }
+  // suppression de mots
+  if (/supprim/i.test(low) && quotes.length >= 1) {
+    return {
+      avant: locLine(quotes.map((q, i) => ({ numero: i + 1, texte: q, type: "supprime" as const }))),
+      apres: locLine([]),
+    };
+  }
+  // insertion / complément / rédaction
+  if (/(ins[ée]r|compl[ée]t|ajout|r[ée]dig)/i.test(low) && quotes.length >= 1) {
+    return {
+      avant: locLine([]),
+      apres: locLine(quotes.map((q, i) => ({ numero: i + 1, texte: q, type: "ajoute" as const }))),
+    };
+  }
+  return undefined; // formulation non reconnue -> DiffViewer montre la prose
+}
+
+// withContent : n'inclure le dispositif (lourd) que pour l'amendement affiché,
+// pas pour toute la liste d'historique (sinon payload de plusieurs Mo).
+function mapAmendement(a: AmendmentRow, deputes: DeputeMap, withContent = false): Amendement {
+  const dep = a.authorId ? deputes.get(a.authorId) : undefined;
+  const auteur: Depute = {
+    id: a.authorId ?? "?",
+    nom: dep?.name ?? (a.authorId ? `Réf. ${a.authorId}` : "Auteur inconnu"),
+    groupe: dep?.group ?? "",
+    couleur: couleurGroupe(dep?.group ?? null),
+  };
+  return {
+    numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
+    auteur,
+    statut: toStatut(a.status, a.sort),
+    dateDepot: formatDate(a.dateDepot?.toISOString()),
+    dateAdoption: a.status === "ACCEPTED" ? formatDate(a.dateSort?.toISOString()) : undefined,
+    resumeIA: withContent ? stripHtml(a.content) || undefined : undefined,
+    // diff rouge/vert extrait du dispositif de l'amendement
+    diff: buildDiff(a.content),
+  };
+}
+
+// bornes pour garder un payload raisonnable côté client
+const MAX_ARTICLES = 60;
+const MAX_HISTO = 80;
+
+// désignation d'article AN ("ART. 12", "ART. UNIQUE", "ART. PRELIM.") -> numéro court
+function articleNumero(designation: string | null): string {
+  if (!designation) return "—";
+  const m = designation.match(/(\d+)/);
+  if (m) return m[1];
+  return designation.replace(/^ART\.?\s*/i, "").trim() || designation;
+}
+
+// diff ligne-à-ligne (LCS) entre deux listes d'alinéas -> DiffLigne[]
+function diffLines(a: string[], b: string[]): DiffLigne[] {
+  const A = a.slice(0, 400);
+  const B = b.slice(0, 400);
+  const n = A.length,
+    m = B.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out: DiffLigne[] = [];
+  let i = 0,
+    j = 0,
+    k = 0;
+  while (i < n && j < m) {
+    if (A[i] === B[j]) out.push({ numero: ++k, texte: A[i++], type: "inchange" }), j++;
+    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
+    else out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
+  }
+  while (i < n) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
+  while (j < m) out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
+  return out;
+}
+
+// { "Article 1er": [...] } -> Map "1" -> [...]  (indexé par numéro)
+function indexByNum(articles: Record<string, string[]>): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const [key, alineas] of Object.entries(articles)) {
+    const num = articleNumero(key);
+    // on garde la 1ère occurrence "pleine" (évite "1er bis")
+    if (!map.has(num)) map.set(num, alineas);
+  }
+  return map;
+}
+
+export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null> {
+  const dossier = await prisma.dossier.findUnique({
+    where: { uid: dossierUid },
+  });
+  if (!dossier) return null;
+
+  const dp = (dossier.raw as any)?.dossierParlementaire ?? {};
+  const parcours = buildParcours(dp);
+
+  // amendements du dossier (via Law.dossierId)
+  const amendements = await prisma.amendment.findMany({
+    where: { law: { dossierId: dossier.id } },
+    select: {
+      numeroLong: true,
+      numeroOrdreDepot: true,
+      article: true,
+      content: true,
+      status: true,
+      sort: true,
+      dateDepot: true,
+      dateSort: true,
+      authorId: true,
+    },
+    orderBy: { dateDepot: "asc" },
+  });
+
+  // résolution des auteurs (réf AN -> nom + groupe) depuis la table Deputy
+  const authorIds = [...new Set(amendements.map((a) => a.authorId).filter(Boolean))] as string[];
+  const deputesRows = authorIds.length
+    ? await prisma.deputy.findMany({
+        where: { uid: { in: authorIds } },
+        select: { uid: true, name: true, group: true },
+      })
+    : [];
+  const deputes: DeputeMap = new Map(
+    deputesRows.map((d) => [d.uid as string, { name: d.name, group: d.group }])
+  );
+
+  // versions de texte parsées (opendata AN) pour le diff avant/après réel
+  const lawTexts = await prisma.lawText.findMany({
+    where: { dossierUid },
+    orderBy: { ordre: "asc" },
+    select: { label: true, articles: true, ordre: true },
+  });
+  const versionsIdx = lawTexts.map((v) => ({
+    label: v.label,
+    byNum: indexByNum(v.articles as Record<string, string[]>),
+  }));
+  // pour un numéro d'article : diff entre 1ère et dernière version qui le contiennent
+  function diffTexteArticle(num: string): { diff: DiffLigne[]; avant: string; apres: string } | null {
+    const withArt = versionsIdx.filter((v) => v.byNum.has(num));
+    if (withArt.length < 2) return null;
+    const premiere = withArt[0];
+    const derniere = withArt[withArt.length - 1];
+    const a = premiere.byNum.get(num)!;
+    const b = derniere.byNum.get(num)!;
+    if (a.join("\n") === b.join("\n")) return null; // pas de changement
+    return { diff: diffLines(a, b), avant: premiere.label, apres: derniere.label };
+  }
+
+  // regroupement par NUMÉRO d'article (fusionne "ART. 12", "ART. 12 annexe"...)
+  const parArticle = new Map<string, AmendmentRow[]>();
+  for (const a of amendements) {
+    const key = articleNumero(a.article);
+    if (!parArticle.has(key)) parArticle.set(key, []);
+    parArticle.get(key)!.push(a);
+  }
+
+  const articles: Article[] = [...parArticle.entries()]
+    // top articles par nombre réel d'amendements, puis bornés
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, MAX_ARTICLES)
+    .map(([numero, rows]) => {
+      const adoptes = rows.filter((r) => r.status === "ACCEPTED");
+      const dernierAdopte = adoptes[adoptes.length - 1];
+      // on borne l'historique envoyé au client (les gros dossiers ont des
+      // centaines d'amendements par article)
+      const historique = rows.slice(0, MAX_HISTO).map((r) => mapAmendement(r, deputes));
+
+      // influenceurs = part des auteurs parmi les amendements adoptés
+      const compteur = new Map<string, number>();
+      for (const r of adoptes) {
+        const k = r.authorId ?? "?";
+        compteur.set(k, (compteur.get(k) ?? 0) + 1);
+      }
+      const totalAdoptes = adoptes.length || 1;
+      const influenceurs = [...compteur.entries()]
+        .sort((x, y) => y[1] - x[1])
+        .slice(0, 8)
+        .map(([id, n]) => {
+          const dep = deputes.get(id);
+          return {
+            depute: {
+              id,
+              nom: dep?.name ?? `Réf. ${id}`,
+              groupe: dep?.group ?? "",
+              couleur: couleurGroupe(dep?.group ?? null),
+            } as Depute,
+            part: Math.round((100 * n) / totalAdoptes),
+          };
+        });
+
+      const dt = diffTexteArticle(numero);
+
+      return {
+        numero,
+        titre: numero && numero !== "—" ? `Article ${numero}` : "Article",
+        // texte articulé indisponible dans l'open data AN
+        texte:
+          "Le texte articulé n'est pas fourni par l'open data de l'Assemblée nationale " +
+          "(publié en HTML/PDF uniquement). Ci-dessous, les amendements déposés sur cette division.",
+        amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, true) : undefined,
+        historique,
+        influenceurs,
+        diffTexte: dt?.diff,
+        diffTexteInfo: dt ? { avant: dt.avant, apres: dt.apres } : undefined,
+      } as Article;
+    });
+
+  const adoptes = amendements.filter((a) => a.status === "ACCEPTED").length;
+  const auteurs = new Set(amendements.map((a) => a.authorId).filter(Boolean));
+
+  const premiereDate = parcours.find((e) => e.date)?.date ?? "";
+  const derniereEtape = [...parcours].reverse().find((e) => e.date);
+
+  return {
+    numero: dossier.uid ?? dossier.id,
+    titre: dossier.title ?? "Dossier législatif",
+    statut: dp?.actesLegislatifs ? "En cours de procédure" : "Déposé",
+    dateDepot: premiereDate,
+    datePromulgation:
+      parcours.find((e) => e.acteur === "promulgation")?.date ?? "",
+    version: derniereEtape?.version ?? "v1.0",
+    parcours,
+    stats: {
+      amendements: amendements.length,
+      amendementsAdoptes: adoptes,
+      deputesImpliques: auteurs.size,
+      deputesTotal: 577,
+      votes: 0, // dataset scrutins non importé
+      heuresDebat: 0, // dataset débats non importé
+    },
+    articles,
+  };
+}
+
+// Dossier par défaut = celui qui a le plus d'amendements liés (pour la démo).
+// Repli : s'il n'y a pas encore d'amendements, on prend n'importe quel dossier.
+export async function getDossierParDefaut(): Promise<string | null> {
+  const rows = await prisma.$queryRaw<{ uid: string; n: bigint }[]>`
+    SELECT d."uid" AS uid, COUNT(a.id) AS n
+    FROM "Dossier" d
+    JOIN "Law" l ON l."dossierId" = d.id
+    JOIN "Amendment" a ON a."lawId" = l.id
+    WHERE d."uid" IS NOT NULL
+    GROUP BY d."uid"
+    ORDER BY n DESC
+    LIMIT 1
+  `;
+  if (rows[0]?.uid) return rows[0].uid;
+
+  const fallback = await prisma.dossier.findFirst({
+    where: { uid: { not: null } },
+    select: { uid: true },
+  });
+  return fallback?.uid ?? null;
+}
+
+// Liste des dossiers (pour la page d'accueil), triés par nb d'amendements.
+export type DossierListItem = {
+  uid: string;
+  titre: string;
+  amendements: number;
+  adoptes: number;
+};
+
+export async function getDossiersList(query?: string): Promise<DossierListItem[]> {
+  const q = (query ?? "").trim();
+  const like = `%${q}%`;
+  const rows = q
+    ? await prisma.$queryRaw<{ uid: string; titre: string; n: bigint; adoptes: bigint }[]>`
+        SELECT d."uid" AS uid, d."title" AS titre,
+               COUNT(a.id) AS n,
+               COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
+        FROM "Dossier" d
+        JOIN "Law" l ON l."dossierId" = d.id
+        JOIN "Amendment" a ON a."lawId" = l.id
+        WHERE d."uid" IS NOT NULL AND d."title" ILIKE ${like}
+        GROUP BY d."uid", d."title"
+        ORDER BY n DESC
+        LIMIT 60`
+    : await prisma.$queryRaw<{ uid: string; titre: string; n: bigint; adoptes: bigint }[]>`
+        SELECT d."uid" AS uid, d."title" AS titre,
+               COUNT(a.id) AS n,
+               COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
+        FROM "Dossier" d
+        JOIN "Law" l ON l."dossierId" = d.id
+        JOIN "Amendment" a ON a."lawId" = l.id
+        WHERE d."uid" IS NOT NULL
+        GROUP BY d."uid", d."title"
+        ORDER BY n DESC
+        LIMIT 60`;
+
+  return rows.map((r) => ({
+    uid: r.uid,
+    titre: r.titre,
+    amendements: Number(r.n),
+    adoptes: Number(r.adoptes),
+  }));
+}
+
+// thématique -> forme d'icône (heuristique sur le titre)
+function iconeFromTitre(t: string): IconeThematique {
+  const s = (t || "").toLowerCase();
+  if (/logement|habitat|urbanis|loyer|foncier/.test(s)) return "logement";
+  if (/énerg|energ|climat|carbone|nucl|électri|electri|renouvel/.test(s)) return "energie";
+  return "numerique";
+}
+
+// Accueil : lois les plus amendées, au format LoiResume attendu par LoiCard
+export async function getLoisEnCours(limit = 12): Promise<LoiResume[]> {
+  const rows = await prisma.$queryRaw<
+    { uid: string; titre: string; n: bigint; dep: bigint }[]
+  >`
+    SELECT d."uid" AS uid, d."title" AS titre,
+           COUNT(a.id) AS n,
+           COUNT(DISTINCT a."authorId") AS dep
+    FROM "Dossier" d
+    JOIN "Law" l ON l."dossierId" = d.id
+    JOIN "Amendment" a ON a."lawId" = l.id
+    WHERE d."uid" IS NOT NULL
+    GROUP BY d."uid", d."title"
+    ORDER BY n DESC
+    LIMIT ${limit}
+  `;
+
+  const out: LoiResume[] = [];
+  for (const r of rows) {
+    const dossier = await prisma.dossier.findUnique({
+      where: { uid: r.uid },
+      select: { raw: true },
+    });
+    const dp = (dossier?.raw as any)?.dossierParlementaire ?? {};
+    const parcours = buildParcours(dp);
+    const derniere = [...parcours].reverse().find((e) => e.date);
+    out.push({
+      numero: r.uid,
+      titre: r.titre,
+      icone: iconeFromTitre(r.titre),
+      amendements: Number(r.n),
+      deputesImpliques: Number(r.dep),
+      derniereActualite: derniere?.date ?? "",
+      etape: derniere
+        ? { label: derniere.label, acteur: derniere.acteur }
+        : { label: "En cours", acteur: "depot" },
+    });
+  }
+  return out;
+}
+
+// Sommaire hiérarchique simple à partir des articles réels
+export function buildSommaire(articles: Article[]) {
+  return [
+    {
+      titre: "Articles amendés",
+      chapitres: [
+        {
+          nom: null as string | null,
+          articles: articles.map((a) => `Article ${a.numero}`),
+        },
+      ],
+    },
+  ];
+}

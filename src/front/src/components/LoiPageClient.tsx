@@ -9,48 +9,52 @@ import ArticleTexte from "@/components/ArticleTexte";
 import HistoriqueAmendements from "@/components/HistoriqueAmendements";
 import Influenceurs from "@/components/Influenceurs";
 import TexteLoiComplet from "@/components/TexteLoiComplet";
-import { Amendement } from "@/lib/types";
-import {
-  getEnTeteLoi,
-  getParcours,
-  getStats,
-  getArticle,
-  getHistoriqueAmendements,
-  getInfluenceurs,
-  getDiffAmendement,
-  getTousLesArticles,
-} from "@/lib/queries";
+import { Amendement, ProjetLoi, StatutAmendement } from "@/lib/types";
+
+type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
 
 const numeroFromLabel = (label: string) => label.replace("Article ", "");
 
-export default function LoiPageClient({ dossierId }: { dossierId: string }) {
+export default function LoiPageClient({
+  projet,
+  sommaire,
+}: {
+  projet: ProjetLoi;
+  sommaire: SommaireData;
+}) {
+  const loi = {
+    numero: projet.numero,
+    titre: projet.titre,
+    statut: projet.statut,
+    dateDepot: projet.dateDepot,
+    datePromulgation: projet.datePromulgation,
+    version: projet.version,
+  };
+  const parcours = projet.parcours;
+  const stats = projet.stats;
+  const articles = projet.articles;
+
   const [etapeActive, setEtapeActive] = useState<number | null>(null);
-  const [articleActifNumero, setArticleActifNumero] = useState("12");
+  const [articleActifNumero, setArticleActifNumero] = useState(articles[0]?.numero ?? "");
   const [amendementActif, setAmendementActif] = useState<Amendement | null>(null);
 
-  const loi = getEnTeteLoi(dossierId);
-  const parcours = getParcours(dossierId);
-  const stats = getStats(dossierId);
   const etape = etapeActive !== null ? parcours[etapeActive] : null;
   const estVueSimple = etape?.acteur === "promulgation" || etape?.acteur === "depot";
-  const article = getArticle(dossierId, articleActifNumero, etape?.version);
+  const article = articles.find((a) => a.numero === articleActifNumero);
 
-  const historique = article ? getHistoriqueAmendements(article.numero) : [];
-  const influenceurs = article ? getInfluenceurs(article.numero) : [];
+  const historique = article?.historique ?? [];
+  const influenceurs = article?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
-  const diff = article && amendementAffiche ? getDiffAmendement(article.numero, amendementAffiche.numero) : undefined;
+  const diff = amendementAffiche?.diff;
 
-  const statutParArticle = Object.fromEntries(
-    getTousLesArticles(dossierId)
-      .filter((a) => a.amendementActuel)
-      .map((a) => [a.numero, a.amendementActuel!.statut])
+  const statutParArticle: Record<string, StatutAmendement> = Object.fromEntries(
+    articles.filter((a) => a.amendementActuel).map((a) => [a.numero, a.amendementActuel!.statut])
   );
 
   function selectEtape(index: number) {
     setEtapeActive(index === -1 ? null : index);
     setAmendementActif(null);
   }
-
   function selectArticle(label: string) {
     setArticleActifNumero(numeroFromLabel(label));
     setAmendementActif(null);
@@ -61,16 +65,15 @@ export default function LoiPageClient({ dossierId }: { dossierId: string }) {
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-5 p-6">
         <LoiHeader loi={loi} />
-
         <StatsCards stats={stats} />
-
         <ParcoursHorizontal etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
 
         {(!etape || estVueSimple) && (
           <TexteLoiComplet
             titreLoi={loi.titre}
             version={etape ? etape.version : loi.version}
-            articles={getTousLesArticles(dossierId)}
+            articles={articles}
+            sommaire={sommaire}
           />
         )}
 
@@ -85,6 +88,7 @@ export default function LoiPageClient({ dossierId }: { dossierId: string }) {
               <div className="grid grid-cols-4 gap-6">
                 <div className="col-span-1">
                   <Sommaire
+                    sommaire={sommaire}
                     articleActif={`Article ${articleActifNumero}`}
                     statutParArticle={statutParArticle}
                     onSelect={selectArticle}

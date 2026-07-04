@@ -1,14 +1,17 @@
 import { Article } from "@/lib/types";
-import { sommaire } from "@/lib/mock-data";
+
+type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
 
 export default function TexteLoiComplet({
   titreLoi,
   version,
   articles,
+  sommaire,
 }: {
   titreLoi: string;
   version: string;
   articles: Article[];
+  sommaire: SommaireData;
 }) {
   const texteParNumero = new Map(articles.map((a) => [a.numero, a]));
   const numeroFromLabel = (label: string) => label.replace("Article ", "");
