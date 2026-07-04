@@ -15,7 +15,7 @@ export default function HomeSearch() {
           placeholder="Rechercher une loi, un amendement, un député..."
           className="flex-1 bg-transparent px-1 py-1.5 text-sm text-slate-900 placeholder:text-gray-400 focus:outline-none"
         />
-        <button className="rounded-lg bg-orange-100 px-4 py-1.5 text-sm font-medium text-orange-600 hover:bg-orange-200">
+        <button className="rounded-lg bg-[#e6e6f1] px-4 py-1.5 text-sm font-medium text-[#000175] hover:bg-[#cccce3]">
           Rechercher
         </button>
       </div>

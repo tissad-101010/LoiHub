@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Amendement } from "@/lib/types";
-import { badgeStatutClass as badgeStatut } from "@/lib/ui";
+import { badgeStatutClass as badgeStatut, statutExplication } from "@/lib/ui";
 import Modal from "./Modal";
 
 const APERCU_MAX = 6;
@@ -56,7 +56,7 @@ export default function HistoriqueAmendements({
               <div className="font-medium text-slate-900">Amendement n°{a.numero}</div>
               <div className="text-xs text-gray-500">{a.auteur.nom}</div>
               <div className="text-xs text-gray-500">{a.auteur.groupe}</div>
-              <span className={`mt-2 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
+              <span title={statutExplication[a.statut]} className={`mt-2 inline-block cursor-help rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
                 {a.statut}
               </span>
               <div className="mt-1 text-xs text-gray-400">{a.dateAdoption ?? a.dateDepot}</div>
@@ -92,7 +92,7 @@ export default function HistoriqueAmendements({
                   {a.dateAdoption && ` · Adopté le ${a.dateAdoption}`}
                 </div>
               </div>
-              <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
+              <span title={statutExplication[a.statut]} className={`shrink-0 cursor-help rounded px-2 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
                 {a.statut}
               </span>
             </button>

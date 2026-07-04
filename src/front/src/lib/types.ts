@@ -34,9 +34,17 @@ export type ActeurEtape = "depot" | "commission" | "assemblee" | "senat" | "adop
 export interface EtapeParcours {
   label: string;
   date: string;
+  dateIso?: string; // date brute (ISO) pour retrouver la version du texte à cette étape
   fait: boolean;
   version: string; // version du texte de loi a l'issue de cette étape
   acteur: ActeurEtape; // qui porte cette étape -> détermine la couleur affichée
+}
+
+// une version datée du texte d'un article (issue de LawText)
+export interface VersionArticle {
+  label: string;
+  dateIso: string;
+  alineas: string[];
 }
 
 export interface Article {
@@ -48,10 +56,13 @@ export interface Article {
   influenceurs: { depute: Depute; part: number }[];
   diffTexte?: DiffLigne[];
   diffTexteInfo?: { avant: string; apres: string };
+  versionsTexte?: VersionArticle[]; // texte de l'article à chaque version datée
 }
 
 export interface ProjetLoi {
   numero: string;
+  numeroAffiche?: string; // numéro lisible (réf. AN sans le préfixe technique)
+  dossierUrl?: string; // lien vers le dossier officiel sur assemblee-nationale.fr
   titre: string;
   statut: string;
   dateDepot: string;
