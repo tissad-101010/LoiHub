@@ -37,13 +37,6 @@ export default function ArticleTexte({
         <TexteDiff diff={article.diffTexte} info={article.diffTexteInfo} />
       )}
 
-      {am?.resumeIA && (
-        <div className="rounded-lg bg-blue-50 p-4">
-          <div className="mb-1 text-sm font-medium text-slate-900">Résumé de l&apos;amendement par IA</div>
-          <p className="text-sm text-slate-700">{am.resumeIA}</p>
-        </div>
-      )}
-
       <DiffViewer diff={diff} amendement={am} />
     </div>
   );
