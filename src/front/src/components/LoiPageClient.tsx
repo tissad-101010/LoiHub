@@ -34,10 +34,14 @@ import ArticleTexte from "@/components/ArticleTexte";
 import HistoriqueAmendements from "@/components/HistoriqueAmendements";
 import Influenceurs from "@/components/Influenceurs";
 import TexteLoiComplet from "@/components/TexteLoiComplet";
-import { Amendement, Depute, ProjetLoi, StatutAmendement } from "@/lib/types";
+import { Amendement, Depute, ProjetLoi, StatutAmendement, VersionArticle } from "@/lib/types";
 
 type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
-type ArticleDetail = { historique: Amendement[]; influenceurs: { depute: Depute; part: number }[] };
+type ArticleDetail = {
+  historique: Amendement[];
+  influenceurs: { depute: Depute; part: number }[];
+  versionsTexte: VersionArticle[];
+};
 
 const numeroFromLabel = (label: string) => label.replace("Article ", "");
 
@@ -91,7 +95,10 @@ export default function LoiPageClient({
       })
       .catch(() => {
         if (!annule)
-          setDetails((prev) => ({ ...prev, [articleActifNumero]: { historique: [], influenceurs: [] } }));
+          setDetails((prev) => ({
+            ...prev,
+            [articleActifNumero]: { historique: [], influenceurs: [], versionsTexte: [] },
+          }));
       })
       .finally(() => {
         if (!annule) setDetailLoading(false);
@@ -109,7 +116,7 @@ export default function LoiPageClient({
   // Texte de l'article TEL QU'À L'ÉTAPE sélectionnée : on prend la dernière
   // version datée <= date de l'étape, et le diff introduit vs la version d'avant.
   const articleAffiche = useMemo(() => {
-    const vers = article?.versionsTexte;
+    const vers = enrichi?.versionsTexte;
     if (!article || !etape?.dateIso || !vers?.length) return article;
     let idx = -1;
     for (let i = 0; i < vers.length; i++) {
@@ -134,7 +141,7 @@ export default function LoiPageClient({
       diffTexte: prev ? diffLines(prev.alineas, cur.alineas) : undefined,
       diffTexteInfo: prev ? { avant: prev.label, apres: cur.label } : undefined,
     };
-  }, [article, etape]);
+  }, [article, etape, enrichi]);
 
   const statutParArticle: Record<string, StatutAmendement> = Object.fromEntries(
     articles.filter((a) => a.amendementActuel).map((a) => [a.numero, a.amendementActuel!.statut])

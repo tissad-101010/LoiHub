@@ -20,7 +20,7 @@ export default async function Home() {
 
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Lois en cours</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Registres législatifs</h2>
             <Link
               href="/historique"
               className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"

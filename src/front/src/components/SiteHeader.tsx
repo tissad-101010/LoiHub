@@ -34,7 +34,7 @@ export default function SiteHeader() {
               href={item === "Explorer les lois" ? "/historique" : "#"}
               className={
                 actif
-                  ? "rounded-lg bg-blue-100 px-3 py-1.5 font-medium text-blue-900"
+                  ? "font-medium text-slate-900"
                   : "text-slate-600 hover:text-slate-900"
               }
             >
@@ -51,19 +51,12 @@ export default function SiteHeader() {
         >
           À propos
         </Link>
-        {surPageLoi ? (
+        {surPageLoi && (
           <Link
             href="/"
             className="rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]"
           >
             ← Retour à l&apos;accueil
-          </Link>
-        ) : (
-          <Link
-            href="/loi/1234"
-            className="rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]"
-          >
-            Commencer à explorer
           </Link>
         )}
       </div>

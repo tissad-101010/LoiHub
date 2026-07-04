@@ -22,6 +22,7 @@ import type {
   DiffLigne,
   LoiResume,
   IconeThematique,
+  VersionArticle,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -407,12 +408,8 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
     return withArt[withArt.length - 1].byNum.get(num)!.join("\n\n");
   }
 
-  // toutes les versions datées du texte de cet article (pour le lien avec le parcours)
-  function versionsTexteArticle(num: string) {
-    return versionsIdx
-      .filter((v) => v.byNum.has(num))
-      .map((v) => ({ label: v.label, dateIso: v.dateIso, alineas: v.byNum.get(num)! }));
-  }
+  // (versionsTexte est désormais chargé à la demande via getArticleDetail —
+  //  cf. commentaire dans le retour d'article ci-dessous)
 
   // regroupement par NUMÉRO d'article (fusionne "ART. 12", "ART. 12 annexe"...)
   const parArticle = new Map<string, AmendmentRow[]>();
@@ -446,15 +443,15 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
           texteArticle(numero) ??
           "Le texte de cet article n'est pas encore disponible. Vous pouvez consulter ci-dessous les amendements qui le concernent.",
         amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, true) : undefined,
-        // historique + influenceurs NE sont PAS dans le payload initial : ils ne
-        // s'affichent que pour l'article actif (après sélection d'une étape) et
-        // pèsent jusqu'à MAX_HISTO × MAX_ARTICLES amendements (~3 Mo de HTML).
-        // Chargés à la demande via getArticleDetail() / GET /api/article.
+        // historique + influenceurs + versionsTexte NE sont PAS dans le payload
+        // initial : ils ne servent que pour l'article actif (après sélection
+        // d'une étape) et pesaient l'essentiel des ~3 Mo (dont ~1,6 Mo de texte
+        // de loi). Chargés à la demande via getArticleDetail() / GET /api/article.
         historique: [],
         influenceurs: [],
         diffTexte: dt?.diff,
         diffTexteInfo: dt ? { avant: dt.avant, apres: dt.apres } : undefined,
-        versionsTexte: versionsTexteArticle(numero),
+        versionsTexte: undefined,
       } as Article;
     });
 
@@ -531,12 +528,33 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
 export async function getArticleDetail(
   dossierUid: string,
   numero: string
-): Promise<{ historique: Amendement[]; influenceurs: { depute: Depute; part: number }[] } | null> {
+): Promise<{
+  historique: Amendement[];
+  influenceurs: { depute: Depute; part: number }[];
+  versionsTexte: VersionArticle[];
+} | null> {
   const dossier = await prisma.dossier.findUnique({
     where: { uid: dossierUid },
     select: { id: true },
   });
   if (!dossier) return null;
+
+  // versions datées du texte de CET article (pour lier le texte au parcours) —
+  // sorties du payload initial (le JSON LawText pèse ~1,6 Mo par dossier).
+  const lawTexts = await prisma.lawText.findMany({
+    where: { dossierUid },
+    orderBy: { ordre: "asc" },
+    select: { label: true, articles: true, ordre: true, date: true },
+  });
+  const versionsTexte: VersionArticle[] = lawTexts
+    .map((v, i) => {
+      let base = v.label;
+      if (base === "Texte déposé" && i > 0) base = "Texte transmis (navette)";
+      const d = formatDate(v.date ?? undefined);
+      const alineas = indexByNum(v.articles as Record<string, string[]>).get(numero);
+      return { label: d ? `${base} (${d})` : base, dateIso: v.date ?? "", alineas };
+    })
+    .filter((v): v is { label: string; dateIso: string; alineas: string[] } => !!v.alineas);
 
   const amendements = await prisma.amendment.findMany({
     where: { law: { dossierId: dossier.id } },
@@ -556,7 +574,7 @@ export async function getArticleDetail(
 
   // uniquement les amendements de l'article demandé
   const rows = amendements.filter((a) => articleNumero(a.article) === numero);
-  if (!rows.length) return { historique: [], influenceurs: [] };
+  if (!rows.length) return { historique: [], influenceurs: [], versionsTexte };
 
   // résolution des auteurs pour CET article seulement (≤ quelques dizaines)
   const authorIds = [...new Set(rows.map((a) => a.authorId).filter(Boolean))] as string[];
@@ -609,7 +627,7 @@ export async function getArticleDetail(
       part: Math.round((100 * n) / totalAdoptes),
     }));
 
-  return { historique, influenceurs };
+  return { historique, influenceurs, versionsTexte };
 }
 
 // Dossier par défaut = celui qui a le plus d'amendements liés (pour la démo).
