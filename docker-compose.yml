@@ -30,6 +30,52 @@ services:
       timeout: 5s
       retries: 20
 
+  # Moteur de recherche instantanée (lois / amendements / députés).
+  # Indexation à lancer une fois les données prêtes :  make index
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: loihub-meili
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:-loihub-dev-master-key}"
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    volumes:
+      - loihub-meili-data:/meili_data
+    healthcheck:
+      # 127.0.0.1 (pas localhost) : dans le conteneur, localhost résout d'abord en
+      # IPv6 ::1 où Meili n'écoute pas (bind 0.0.0.0) -> "connection refused".
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      # laisse Meili démarrer avant de compter les checks comme des échecs
+      # (évite un make up en erreur pendant la recréation du conteneur).
+      start_period: 15s
+
+  # Indexation automatique de la recherche au démarrage (make up).
+  # Attend que db + meilisearch soient sains, indexe les 3 collections
+  # (dossiers / amendements / députés), puis se termine (restart: "no").
+  # Le service `web` démarre en parallèle sans attendre la fin de l'indexation.
+  indexer:
+    build:
+      context: ./src/front
+    container_name: loihub-indexer
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/loihub"
+      MEILI_HOST: "http://meilisearch:7700"
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:-loihub-dev-master-key}"
+      NODE_ENV: production
+    command: ["npm", "run", "index:search"]
+
   web:
     build:
       context: ./src/front
@@ -38,11 +84,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/loihub"
+      MEILI_HOST: "http://meilisearch:7700"
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:-loihub-dev-master-key}"
       NODE_ENV: production
     ports:
       - "${APP_PORT:-3000}:3000"
 
 volumes:
   loihub-db-data:
+  loihub-meili-data:
