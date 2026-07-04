@@ -1,6 +1,9 @@
 *00Tree.html
 *.json
 *data
+
+# Claude Code local config
+.claude/
 # Logs
 logs
 *.log
