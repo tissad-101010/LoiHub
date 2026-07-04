@@ -30,11 +30,11 @@ export default function HomeHero() {
         <h1 className="mb-5 text-5xl font-bold leading-[1.1] tracking-tight text-slate-900">
           Comprendre la loi,
           <br />
-          <span className="relative inline-block text-orange-600">
+          <span className="relative inline-block text-[#000175]">
             ligne par ligne.
             <svg
               viewBox="0 0 220 12"
-              className="absolute -bottom-2 left-0 h-3 w-full text-orange-200"
+              className="absolute -bottom-2 left-0 h-3 w-full text-[#cccce3]"
               preserveAspectRatio="none"
             >
               <path d="M2 8c40-6 140-6 216 0" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round" />
@@ -75,7 +75,7 @@ export default function HomeHero() {
               placeholder="Ex : Pourquoi l'amendement n°452 a-t-il été adopté ?"
               className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
             />
-            <button className="shrink-0 rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200">
+            <button className="shrink-0 rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]">
               Poser la question →
             </button>
           </div>
