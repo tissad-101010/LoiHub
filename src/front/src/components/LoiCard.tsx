@@ -1,4 +1,4 @@
-import Link from "next/link";
+import TransitionLink from "@/components/TransitionLink";
 import { IconeThematique, LoiResume } from "@/lib/types";
 import { COULEUR_ACTEUR } from "@/lib/ui";
 
@@ -81,9 +81,9 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
         <div className="hidden shrink-0 gap-4 text-xs text-gray-500 md:flex">
           <StatsInfos loi={loi} />
         </div>
-        <Link href={`/loi/${loi.numero}`} className="shrink-0 text-sm font-medium text-blue-600 hover:underline">
+        <TransitionLink href={`/loi/${loi.numero}`} className="shrink-0 text-sm font-medium text-blue-600 hover:underline">
           {lienLabel}
-        </Link>
+        </TransitionLink>
       </div>
     );
   }
@@ -105,9 +105,9 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
         <StatsInfos loi={loi} />
       </div>
 
-      <Link href={`/loi/${loi.numero}`} className="mt-auto text-sm font-medium text-blue-600 hover:underline">
+      <TransitionLink href={`/loi/${loi.numero}`} className="mt-auto text-sm font-medium text-blue-600 hover:underline">
         {lienLabel}
-      </Link>
+      </TransitionLink>
     </div>
   );
 }
