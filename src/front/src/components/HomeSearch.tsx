@@ -140,6 +140,30 @@ export default function HomeSearch() {
     [router]
   );
 
+  // Clic sur un exemple populaire : on résout le terme via l'API de recherche et
+  // on redirige vers la 1re loi correspondante. Repli sur le pré-remplissage de
+  // la barre si aucune loi n'est trouvée.
+  const goExemple = useCallback(
+    async (ex: string) => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(ex)}`);
+        const data: SearchResponse = await res.json();
+        const first = data.dossiers?.[0];
+        if (first) {
+          setOpen(false);
+          router.push(`/loi/${encodeURIComponent(first.id)}`);
+          return;
+        }
+      } catch {
+        /* repli ci-dessous */
+      }
+      setQuery(ex);
+      setOpen(true);
+      inputRef.current?.focus();
+    },
+    [router]
+  );
+
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
       setOpen(false);
@@ -256,11 +280,7 @@ export default function HomeSearch() {
               <button
                 type="button"
                 className="text-slate-900 hover:underline"
-                onClick={() => {
-                  setQuery(ex);
-                  setOpen(true);
-                  inputRef.current?.focus();
-                }}
+                onClick={() => goExemple(ex)}
               >
                 {ex}
               </button>
