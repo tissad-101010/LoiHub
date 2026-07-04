@@ -9,6 +9,9 @@ LoiHub est une plateforme qui permet d’explorer les lois françaises comme si 
 ### Porteur
 Tahar Issad, FullStack Developer/Software Engineer student @42Paris
 
+### URL de démonstration
+https://p2vdu3d4me.eu-west-3.awsapprunner.com/
+
 ### Description longue
 **Contexte**
 
@@ -42,8 +45,7 @@ Explorer la chronologie complète d’un texte : dépôt, commissions, séances,
 - Explications IA
 Résumer les changements complexes en langage simple pour les citoyens.
 
-### Démo en ligne
-https://demo.com
+
 
 ### Image principale
 ![LoiHub](images/coverLH.png)

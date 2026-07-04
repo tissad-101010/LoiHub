@@ -11,6 +11,8 @@ export interface Depute {
   nom: string;
   groupe: string;
   couleur: string; // couleur tailwind du groupe (ex: "#2563eb")
+  photoUrl?: string;
+  institution?: "assemblee" | "senat";
 }
 
 export interface DiffLigne {
