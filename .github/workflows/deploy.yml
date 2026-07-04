@@ -1,0 +1,43 @@
+name: Deploy front to AWS App Runner
+
+# Sur push main : build l'image du front -> push ECR -> App Runner redéploie
+# automatiquement (AutoDeploymentsEnabled=true sur le service).
+#
+# Prérequis (GitHub → Settings → Secrets and variables → Actions) :
+#   AWS_ACCESS_KEY_ID       (clé IAM avec accès ECR)
+#   AWS_SECRET_ACCESS_KEY
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/front/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: eu-west-3
+  ECR_REPO: 489017170212.dkr.ecr.eu-west-3.amazonaws.com/loihub-web
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+
+      - name: Build and push image
+        run: |
+          docker build --platform linux/amd64 -t $ECR_REPO:latest -t $ECR_REPO:${{ github.sha }} src/front
+          docker push $ECR_REPO:latest
+          docker push $ECR_REPO:${{ github.sha }}
+        # App Runner redéploie tout seul sur le nouveau :latest (auto-deployments).
