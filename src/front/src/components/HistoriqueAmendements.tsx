@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Amendement } from "@/lib/types";
 import { badgeStatutClass as badgeStatut } from "@/lib/ui";
 import Modal from "./Modal";
+import ParlementaireAvatar from "./ParlementaireAvatar";
 
 const APERCU_MAX = 6;
 
@@ -54,8 +55,15 @@ export default function HistoriqueAmendements({
               }`}
             >
               <div className="font-medium text-slate-900">Amendement n°{a.numero}</div>
-              <div className="text-xs text-gray-500">{a.auteur.nom}</div>
-              <div className="text-xs text-gray-500">{a.auteur.groupe}</div>
+              <div className="mt-2 flex items-center gap-2">
+                <ParlementaireAvatar depute={a.auteur} size="sm" />
+                <div className="min-w-0">
+                  <div className="truncate text-xs text-gray-700">{a.auteur.nom}</div>
+                  <div className="truncate text-xs text-gray-500">
+                    {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              </div>
               <span className={`mt-2 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
                 {a.statut}
               </span>
@@ -83,13 +91,19 @@ export default function HistoriqueAmendements({
                 a.numero === amendementActifNumero ? "border-blue-600 ring-1 ring-blue-600" : "border-gray-200 hover:border-blue-300"
               }`}
             >
-              <div>
+              <div className="flex min-w-0 items-center gap-3">
+                <ParlementaireAvatar depute={a.auteur} />
+                <div className="min-w-0">
                 <div className="font-medium text-slate-900">
-                  Amendement n°{a.numero} — {a.auteur.nom} <span className="text-gray-400">({a.auteur.groupe})</span>
+                  Amendement n°{a.numero} — {a.auteur.nom}{" "}
+                  <span className="text-gray-400">
+                    {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+                  </span>
                 </div>
                 <div className="text-xs text-gray-500">
                   Déposé le {a.dateDepot}
                   {a.dateAdoption && ` · Adopté le ${a.dateAdoption}`}
+                </div>
                 </div>
               </div>
               <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>

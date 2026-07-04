@@ -5,11 +5,12 @@
 //  - texte articulé des lois -> non disponible (divisions vides). On affiche le
 //    dispositif de l'amendement comme contenu, avec une mention explicite.
 //  - diff ligne-à-ligne -> non calculable (les amendements sont en prose).
-//  - noms/groupes des députés -> dataset "acteurs" non importé -> on affiche la
-//    référence AN de l'auteur.
+//  - groupes des anciens mandats parfois absents -> on affiche la référence AN
+//    quand la source officielle ne donne pas plus.
 //  - votes / heures de débat -> datasets non importés -> 0.
 
 import { prisma } from "./prisma";
+import { getInfoParlementaireOfficielle, photoParlementaireUrl } from "./parlementaires";
 import type {
   ProjetLoi,
   Article,
@@ -163,7 +164,24 @@ function couleurGroupe(group: string | null): string {
   return GROUPE_COULEUR[group] ?? "#64748b";
 }
 
-export type DeputeMap = Map<string, { name: string; group: string | null }>;
+export type DeputeMap = Map<
+  string,
+  { name: string; group: string | null; photoUrl?: string; institution?: "assemblee" | "senat" }
+>;
+
+function deputeFromId(id: string | null | undefined, deputes: DeputeMap): Depute {
+  const dep = id ? deputes.get(id) : undefined;
+  const photoUrl = id ? dep?.photoUrl ?? photoParlementaireUrl(id) : undefined;
+
+  return {
+    id: id ?? "?",
+    nom: dep?.name ?? (id ? `Réf. ${id}` : "Auteur inconnu"),
+    groupe: dep?.group ?? "",
+    couleur: couleurGroupe(dep?.group ?? null),
+    photoUrl,
+    institution: dep?.institution ?? (/^PA\d+$/.test(id ?? "") ? "assemblee" : undefined),
+  };
+}
 
 // Construit un diff rouge/vert à partir du dispositif (prose) de l'amendement.
 // L'open data AN ne donne pas le texte de loi ; on affiche donc CE QUE
@@ -224,13 +242,7 @@ function buildDiff(
 // withContent : n'inclure le dispositif (lourd) que pour l'amendement affiché,
 // pas pour toute la liste d'historique (sinon payload de plusieurs Mo).
 function mapAmendement(a: AmendmentRow, deputes: DeputeMap, withContent = false): Amendement {
-  const dep = a.authorId ? deputes.get(a.authorId) : undefined;
-  const auteur: Depute = {
-    id: a.authorId ?? "?",
-    nom: dep?.name ?? (a.authorId ? `Réf. ${a.authorId}` : "Auteur inconnu"),
-    groupe: dep?.group ?? "",
-    couleur: couleurGroupe(dep?.group ?? null),
-  };
+  const auteur = deputeFromId(a.authorId, deputes);
   return {
     numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
     auteur,
@@ -327,8 +339,28 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
       })
     : [];
   const deputes: DeputeMap = new Map(
-    deputesRows.map((d) => [d.uid as string, { name: d.name, group: d.group }])
+    deputesRows.map((d) => [
+      d.uid as string,
+      {
+        name: d.name,
+        group: d.group,
+        photoUrl: photoParlementaireUrl(d.uid as string),
+        institution: /^PA\d+$/.test(d.uid as string) ? "assemblee" : undefined,
+      },
+    ])
   );
+
+  const missingAuthorIds = authorIds.filter((id) => !deputes.has(id)).slice(0, 160);
+  const officialInfos = await Promise.all(missingAuthorIds.map((id) => getInfoParlementaireOfficielle(id)));
+  for (const info of officialInfos) {
+    if (!info.nom && !info.photoUrl) continue;
+    deputes.set(info.id, {
+      name: info.nom ?? `Réf. ${info.id}`,
+      group: null,
+      photoUrl: info.photoUrl,
+      institution: info.source,
+    });
+  }
 
   // versions de texte parsées (opendata AN) pour le diff avant/après réel
   const lawTexts = await prisma.lawText.findMany({
@@ -384,14 +416,8 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
         .sort((x, y) => y[1] - x[1])
         .slice(0, 8)
         .map(([id, n]) => {
-          const dep = deputes.get(id);
           return {
-            depute: {
-              id,
-              nom: dep?.name ?? `Réf. ${id}`,
-              groupe: dep?.group ?? "",
-              couleur: couleurGroupe(dep?.group ?? null),
-            } as Depute,
+            depute: deputeFromId(id, deputes),
             part: Math.round((100 * n) / totalAdoptes),
           };
         });

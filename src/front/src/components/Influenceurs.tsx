@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Article } from "@/lib/types";
 import Modal from "./Modal";
+import ParlementaireAvatar from "./ParlementaireAvatar";
 
 const APERCU_MAX = 4;
 
@@ -9,10 +10,12 @@ function LigneInfluenceur({ i, rang }: { i: Article["influenceurs"][number]; ran
   return (
     <li className="flex items-center gap-3">
       <span className="w-4 text-sm text-gray-400">{rang}</span>
-      <span className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
+      <ParlementaireAvatar depute={i.depute} />
       <div className="flex-1">
         <div className="text-sm font-medium text-slate-900">{i.depute.nom}</div>
-        <div className="text-xs text-gray-500">{i.depute.groupe}</div>
+        <div className="text-xs text-gray-500">
+          {[i.depute.groupe, i.depute.id !== "?" ? i.depute.id : null].filter(Boolean).join(" · ")}
+        </div>
         <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
           <div className="h-1.5 rounded-full" style={{ width: `${i.part}%`, backgroundColor: i.depute.couleur }} />
         </div>
