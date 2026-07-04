@@ -4,12 +4,10 @@ type SommaireData = { titre: string; chapitres: { nom: string | null; articles: 
 
 export default function TexteLoiComplet({
   titreLoi,
-  version,
   articles,
   sommaire,
 }: {
   titreLoi: string;
-  version: string;
   articles: Article[];
   sommaire: SommaireData;
 }) {
@@ -19,8 +17,8 @@ export default function TexteLoiComplet({
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-900">Texte intégral de la loi</h2>
-        <span className="text-xs text-gray-400">Version {version}</span>
+        <h2 className="font-semibold text-slate-900">Texte de la loi — articles amendés</h2>
+        <span className="text-xs text-gray-400">{articles.length} articles</span>
       </div>
       <p className="mb-4 text-xs text-gray-500">
         Sélectionnez une étape du parcours législatif ci-dessus pour explorer l&apos;historique et les amendements

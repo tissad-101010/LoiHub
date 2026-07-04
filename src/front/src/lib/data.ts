@@ -64,9 +64,14 @@ function stripHtml(html: unknown): string {
 function acteurFromCode(code: string): ActeurEtape {
   const c = (code || "").toUpperCase();
   if (c.includes("DEPOT")) return "depot";
-  if (c.includes("PROMULGATION") || c.includes("PROMUL")) return "promulgation";
-  if (c.includes("CMP") || c.includes("CONSTIT") || c.includes("ADOPT") || c.includes("LECT-DEF")) return "adoption";
-  if (c.includes("COM")) return "commission";
+  // Codes réels AN pour la promulgation : "PROM" (acte de promulgation) et
+  // "PROM-PUB" (publication au JO). L'ancien test "PROMUL" ne matchait ni l'un
+  // ni l'autre -> l'étape tombait en "commission" et datePromulgation restait vide.
+  if (c.includes("PROM")) return "promulgation";
+  if (c.includes("CONSTIT") || c.includes("ADOPT") || c.includes("LECT-DEF")) return "adoption";
+  // Une Commission Mixte Paritaire est une commission (violet), pas une adoption :
+  // la colorer en vert laissait croire à tort que la CMP avait abouti.
+  if (c.includes("COM") || c.includes("CMP")) return "commission";
   if (c.startsWith("AN")) return "assemblee";
   if (c.startsWith("SN")) return "senat";
   return "commission";
@@ -265,6 +270,8 @@ function articleNumero(designation: string | null): string {
   if (!designation) return "—";
   const m = designation.match(/(\d+)/);
   if (m) return m[1];
+  // "Article premier" / "ART. PREMIER" : pas de chiffre mais c'est l'article 1er
+  if (/premier/i.test(designation)) return "1";
   return designation.replace(/^ART\.?\s*/i, "").trim() || designation;
 }
 
@@ -417,6 +424,10 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
 
   const uidActuelParNumero = new Map<string, string>();
   const articles: Article[] = [...parArticle.entries()]
+    // on ne garde que les vrais articles numérotés : on écarte les seaux
+    // parasites issus des désignations d'amendements ("TITRE", "APRÈS ART. …",
+    // "—") qui ne correspondent à aucun article de la loi.
+    .filter(([numero]) => /^\d/.test(numero))
     // top articles par nombre réel d'amendements, puis bornés
     .sort((a, b) => b[1].length - a[1].length)
     .slice(0, MAX_ARTICLES)
@@ -424,26 +435,6 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
       const adoptes = rows.filter((r) => r.status === "ACCEPTED");
       const dernierAdopte = adoptes[adoptes.length - 1];
       if (dernierAdopte?.uid) uidActuelParNumero.set(numero, dernierAdopte.uid);
-      // on borne l'historique envoyé au client (les gros dossiers ont des
-      // centaines d'amendements par article)
-      const historique = rows.slice(0, MAX_HISTO).map((r) => mapAmendement(r, deputes));
-
-      // influenceurs = part des auteurs parmi les amendements adoptés
-      const compteur = new Map<string, number>();
-      for (const r of adoptes) {
-        const k = r.authorId ?? "?";
-        compteur.set(k, (compteur.get(k) ?? 0) + 1);
-      }
-      const totalAdoptes = adoptes.length || 1;
-      const influenceurs = [...compteur.entries()]
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 8)
-        .map(([id, n]) => {
-          return {
-            depute: deputeFromId(id, deputes),
-            part: Math.round((100 * n) / totalAdoptes),
-          };
-        });
 
       const dt = diffTexteArticle(numero);
 
@@ -455,13 +446,28 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
           texteArticle(numero) ??
           "Le texte de cet article n'est pas encore disponible. Vous pouvez consulter ci-dessous les amendements qui le concernent.",
         amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, true) : undefined,
-        historique,
-        influenceurs,
+        // historique + influenceurs NE sont PAS dans le payload initial : ils ne
+        // s'affichent que pour l'article actif (après sélection d'une étape) et
+        // pèsent jusqu'à MAX_HISTO × MAX_ARTICLES amendements (~3 Mo de HTML).
+        // Chargés à la demande via getArticleDetail() / GET /api/article.
+        historique: [],
+        influenceurs: [],
         diffTexte: dt?.diff,
         diffTexteInfo: dt ? { avant: dt.avant, apres: dt.apres } : undefined,
         versionsTexte: versionsTexteArticle(numero),
       } as Article;
     });
+
+  // On sélectionne les articles les plus amendés (ci-dessus) mais on les AFFICHE
+  // dans l'ordre de lecture de la loi (1, 2, 3…) et non par nombre d'amendements.
+  articles.sort((a, b) => {
+    const na = parseInt(a.numero, 10);
+    const nb = parseInt(b.numero, 10);
+    if (Number.isNaN(na) && Number.isNaN(nb)) return 0;
+    if (Number.isNaN(na)) return 1;
+    if (Number.isNaN(nb)) return -1;
+    return na - nb;
+  });
 
   // contenu (dispositif) chargé UNIQUEMENT pour les amendements affichés (~60),
   // pas pour les 14k -> gros gain de perf sur la page loi.
@@ -517,6 +523,93 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
     },
     articles,
   };
+}
+
+// Détail d'UN article, chargé à la demande (l'historique + les influenceurs ne
+// sont pas dans le payload initial de getProjetLoi -> gros gain de poids de page).
+// On ne résout les auteurs (y compris fallback réseau) que pour cet article.
+export async function getArticleDetail(
+  dossierUid: string,
+  numero: string
+): Promise<{ historique: Amendement[]; influenceurs: { depute: Depute; part: number }[] } | null> {
+  const dossier = await prisma.dossier.findUnique({
+    where: { uid: dossierUid },
+    select: { id: true },
+  });
+  if (!dossier) return null;
+
+  const amendements = await prisma.amendment.findMany({
+    where: { law: { dossierId: dossier.id } },
+    select: {
+      uid: true,
+      numeroLong: true,
+      numeroOrdreDepot: true,
+      article: true,
+      status: true,
+      sort: true,
+      dateDepot: true,
+      dateSort: true,
+      authorId: true,
+    },
+    orderBy: { dateDepot: "asc" },
+  });
+
+  // uniquement les amendements de l'article demandé
+  const rows = amendements.filter((a) => articleNumero(a.article) === numero);
+  if (!rows.length) return { historique: [], influenceurs: [] };
+
+  // résolution des auteurs pour CET article seulement (≤ quelques dizaines)
+  const authorIds = [...new Set(rows.map((a) => a.authorId).filter(Boolean))] as string[];
+  const deputesRows = authorIds.length
+    ? await prisma.deputy.findMany({
+        where: { uid: { in: authorIds } },
+        select: { uid: true, name: true, group: true },
+      })
+    : [];
+  const deputes: DeputeMap = new Map(
+    deputesRows.map((d) => [
+      d.uid as string,
+      {
+        name: d.name,
+        group: d.group,
+        photoUrl: photoParlementaireUrl(d.uid as string),
+        institution: /^PA\d+$/.test(d.uid as string) ? ("assemblee" as const) : undefined,
+      },
+    ])
+  );
+  const missingAuthorIds = authorIds.filter((id) => !deputes.has(id)).slice(0, 160);
+  const officialInfos = await Promise.all(
+    missingAuthorIds.map((id) => getInfoParlementaireOfficielle(id))
+  );
+  for (const info of officialInfos) {
+    if (!info.nom && !info.photoUrl) continue;
+    deputes.set(info.id, {
+      name: info.nom ?? `Réf. ${info.id}`,
+      group: null,
+      photoUrl: info.photoUrl,
+      institution: info.source,
+    });
+  }
+
+  const historique = rows.slice(0, MAX_HISTO).map((r) => mapAmendement(r, deputes));
+
+  // influenceurs = part des auteurs parmi les amendements adoptés
+  const adoptes = rows.filter((r) => r.status === "ACCEPTED");
+  const compteur = new Map<string, number>();
+  for (const r of adoptes) {
+    const k = r.authorId ?? "?";
+    compteur.set(k, (compteur.get(k) ?? 0) + 1);
+  }
+  const totalAdoptes = adoptes.length || 1;
+  const influenceurs = [...compteur.entries()]
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 8)
+    .map(([id, n]) => ({
+      depute: deputeFromId(id, deputes),
+      part: Math.round((100 * n) / totalAdoptes),
+    }));
+
+  return { historique, influenceurs };
 }
 
 // Dossier par défaut = celui qui a le plus d'amendements liés (pour la démo).
