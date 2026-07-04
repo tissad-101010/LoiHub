@@ -1,5 +1,5 @@
 # $\color{cornflowerblue}{\huge\text{LoiHub}}$
-## $\color{midnightblue}{\small\text{Le GitHub de la loi}}$
+## $\color{midnightblue}{\small\text{Le Hub de la loi}}$
 
 > *Suivre une loi comme on suit un dépôt de code : commits, diffs, contributeurs.*
 
