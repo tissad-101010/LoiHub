@@ -38,10 +38,10 @@ export default function TexteLoiComplet({
                   const article = texteParNumero.get(numeroFromLabel(label));
                   return (
                     <div key={label} className="mb-3 pl-2">
-                      <span className="text-sm font-medium text-slate-900">{label}. </span>
-                      <span className="text-sm leading-relaxed text-slate-700">
+                      <div className="text-sm font-medium text-slate-900">{label}</div>
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
                         {article?.texte ?? "Texte non renseigné."}
-                      </span>
+                      </p>
                     </div>
                   );
                 })}

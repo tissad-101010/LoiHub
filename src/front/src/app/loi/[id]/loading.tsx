@@ -1,6 +1,5 @@
 // Affiché instantanément pendant que la page loi (Server Component) charge ses
-// données. Permet à la transition (next-transition-router) de se terminer tout
-// de suite au lieu de rester bloquée sur l'overlay.
+// données (squelette de chargement).
 export default function Loading() {
   return (
     <div className="min-h-screen">

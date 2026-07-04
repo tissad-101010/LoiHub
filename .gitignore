@@ -164,3 +164,6 @@ vite.config.ts.timestamp-*
 
 
 .claude
+# copies de travail obsolètes (ancien front dupliqué)
+/web/
+/front/

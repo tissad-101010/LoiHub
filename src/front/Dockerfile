@@ -17,5 +17,8 @@ RUN npx prisma generate
 RUN npm run build
 
 ENV NODE_ENV=production
+# Clé API Mistral (clé de TEST — assumée en clair dans l'image ECR).
+# Pour une vraie clé de prod : utiliser plutôt les variables d'env du service App Runner.
+ENV MISTRAL_API_KEY="h0BMRp6VI2TBclAGqfHOQGYIuiwiHoW5"
 EXPOSE 3000
 CMD ["npm", "run", "start"]

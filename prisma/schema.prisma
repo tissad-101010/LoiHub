@@ -117,6 +117,9 @@ model Law {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // jointure Dossier -> Law -> Amendment sur toutes les pages
+  @@index([dossierId])
 }
 
 //
@@ -179,6 +182,12 @@ model Amendment {
   votes     Vote[]
 
   createdAt DateTime @default(now())
+
+  // Colonnes de jointure/filtre (non indexées par Postgres/Prisma par défaut)
+  // -> évite le seq scan des ~121k amendements sur la page loi.
+  @@index([lawId])
+  @@index([authorId])
+  @@index([status])
 }
 
 //

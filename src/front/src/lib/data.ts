@@ -113,6 +113,7 @@ function buildParcours(dp: any): EtapeParcours[] {
     etapes.push({
       label: String(label),
       date: formatDate(dateIso),
+      dateIso: typeof dateIso === "string" ? dateIso : undefined,
       fait: !!dateIso && new Date(dateIso).getTime() <= Date.now(),
       version: `v${v}.0`,
       acteur: acteurFromCode(code),
@@ -334,12 +335,20 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
   const lawTexts = await prisma.lawText.findMany({
     where: { dossierUid },
     orderBy: { ordre: "asc" },
-    select: { label: true, articles: true, ordre: true },
+    select: { label: true, articles: true, ordre: true, date: true },
   });
-  const versionsIdx = lawTexts.map((v) => ({
-    label: v.label,
-    byNum: indexByNum(v.articles as Record<string, string[]>),
-  }));
+  const versionsIdx = lawTexts.map((v, i) => {
+    // "Texte déposé" après une adoption = re-dépôt en navette (transmission),
+    // pas le dépôt initial -> label plus honnête pour ne pas dérouter.
+    let base = v.label;
+    if (base === "Texte déposé" && i > 0) base = "Texte transmis (navette)";
+    const d = formatDate(v.date ?? undefined);
+    return {
+      label: d ? `${base} (${d})` : base, // date -> chronologie explicite
+      dateIso: v.date ?? "",
+      byNum: indexByNum(v.articles as Record<string, string[]>),
+    };
+  });
   // pour un numéro d'article : diff entre 1ère et dernière version qui le contiennent
   function diffTexteArticle(num: string): { diff: DiffLigne[]; avant: string; apres: string } | null {
     const withArt = versionsIdx.filter((v) => v.byNum.has(num));
@@ -350,6 +359,20 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
     const b = derniere.byNum.get(num)!;
     if (a.join("\n") === b.join("\n")) return null; // pas de changement
     return { diff: diffLines(a, b), avant: premiere.label, apres: derniere.label };
+  }
+
+  // vrai texte de l'article (dernière version parsée qui le contient)
+  function texteArticle(num: string): string | null {
+    const withArt = versionsIdx.filter((v) => v.byNum.has(num));
+    if (!withArt.length) return null;
+    return withArt[withArt.length - 1].byNum.get(num)!.join("\n\n");
+  }
+
+  // toutes les versions datées du texte de cet article (pour le lien avec le parcours)
+  function versionsTexteArticle(num: string) {
+    return versionsIdx
+      .filter((v) => v.byNum.has(num))
+      .map((v) => ({ label: v.label, dateIso: v.dateIso, alineas: v.byNum.get(num)! }));
   }
 
   // regroupement par NUMÉRO d'article (fusionne "ART. 12", "ART. 12 annexe"...)
@@ -401,15 +424,16 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
       return {
         numero,
         titre: numero && numero !== "—" ? `Article ${numero}` : "Article",
-        // texte articulé indisponible dans l'open data AN
+        // vrai texte de l'article si on l'a parsé, sinon note courte et claire
         texte:
-          "Le texte articulé n'est pas fourni par l'open data de l'Assemblée nationale " +
-          "(publié en HTML/PDF uniquement). Ci-dessous, les amendements déposés sur cette division.",
+          texteArticle(numero) ??
+          "Le texte de cet article n'est pas encore disponible. Vous pouvez consulter ci-dessous les amendements qui le concernent.",
         amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, true) : undefined,
         historique,
         influenceurs,
         diffTexte: dt?.diff,
         diffTexteInfo: dt ? { avant: dt.avant, apres: dt.apres } : undefined,
+        versionsTexte: versionsTexteArticle(numero),
       } as Article;
     });
 
@@ -438,8 +462,18 @@ export async function getProjetLoi(dossierUid: string): Promise<ProjetLoi | null
   const premiereDate = parcours.find((e) => e.date)?.date ?? "";
   const derniereEtape = [...parcours].reverse().find((e) => e.date);
 
+  // lien vers le dossier officiel AN (via titreChemin + législature)
+  const legislature = dp?.legislature ?? dossier.uid?.match(/L(\d+)N/)?.[1] ?? "17";
+  const chemin = dp?.titreDossier?.titreChemin ?? dossier.uid;
+  const dossierUrl = chemin
+    ? `https://www.assemblee-nationale.fr/dyn/${legislature}/dossiers/${chemin}`
+    : undefined;
+
   return {
     numero: dossier.uid ?? dossier.id,
+    // numéro lisible pour l'affichage (partie numérique du réf. AN)
+    numeroAffiche: dossier.uid?.match(/N(\d+)/)?.[1] ?? dossier.uid ?? "",
+    dossierUrl,
     titre: dossier.title ?? "Dossier législatif",
     statut: dp?.actesLegislatifs ? "En cours de procédure" : "Déposé",
     dateDepot: premiereDate,
@@ -549,16 +583,20 @@ export async function getLoisEnCours(limit = 12): Promise<LoiResume[]> {
     LIMIT ${limit}
   `;
 
-  const out: LoiResume[] = [];
-  for (const r of rows) {
-    const dossier = await prisma.dossier.findUnique({
-      where: { uid: r.uid },
-      select: { raw: true },
-    });
-    const dp = (dossier?.raw as any)?.dossierParlementaire ?? {};
+  // Un seul findMany pour tous les dossiers affichés (au lieu d'un findUnique
+  // par carte, séquentiel) -> supprime le N+1 sur la home.
+  const uids = rows.map((r) => r.uid);
+  const dossiers = await prisma.dossier.findMany({
+    where: { uid: { in: uids } },
+    select: { uid: true, raw: true },
+  });
+  const rawByUid = new Map(dossiers.map((d) => [d.uid as string, d.raw]));
+
+  return rows.map((r) => {
+    const dp = (rawByUid.get(r.uid) as any)?.dossierParlementaire ?? {};
     const parcours = buildParcours(dp);
     const derniere = [...parcours].reverse().find((e) => e.date);
-    out.push({
+    return {
       numero: r.uid,
       titre: r.titre,
       icone: iconeFromTitre(r.titre),
@@ -568,9 +606,8 @@ export async function getLoisEnCours(limit = 12): Promise<LoiResume[]> {
       etape: derniere
         ? { label: derniere.label, acteur: derniere.acteur }
         : { label: "En cours", acteur: "depot" },
-    });
-  }
-  return out;
+    };
+  });
 }
 
 // Sommaire hiérarchique simple à partir des articles réels

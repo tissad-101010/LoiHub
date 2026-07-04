@@ -1,5 +1,30 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { DiffLigne } from "@/lib/types";
+
+// diff ligne-à-ligne (LCS) entre deux listes d'alinéas -> DiffLigne[]
+function diffLines(a: string[], b: string[]): DiffLigne[] {
+  const A = a.slice(0, 400);
+  const B = b.slice(0, 400);
+  const n = A.length,
+    m = B.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out: DiffLigne[] = [];
+  let i = 0,
+    j = 0,
+    k = 0;
+  while (i < n && j < m) {
+    if (A[i] === B[j]) out.push({ numero: ++k, texte: A[i++], type: "inchange" }), j++;
+    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
+    else out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
+  }
+  while (i < n) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
+  while (j < m) out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
+  return out;
+}
 import SiteHeader from "@/components/SiteHeader";
 import LoiHeader from "@/components/LoiHeader";
 import ParcoursHorizontal from "@/components/ParcoursHorizontal";
@@ -23,12 +48,13 @@ export default function LoiPageClient({
   sommaire: SommaireData;
 }) {
   const loi = {
-    numero: projet.numero,
+    numero: projet.numeroAffiche ?? projet.numero,
     titre: projet.titre,
     statut: projet.statut,
     dateDepot: projet.dateDepot,
     datePromulgation: projet.datePromulgation,
     version: projet.version,
+    dossierUrl: projet.dossierUrl,
   };
   const parcours = projet.parcours;
   const stats = projet.stats;
@@ -46,6 +72,36 @@ export default function LoiPageClient({
   const influenceurs = article?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
   const diff = amendementAffiche?.diff;
+
+  // Texte de l'article TEL QU'À L'ÉTAPE sélectionnée : on prend la dernière
+  // version datée <= date de l'étape, et le diff introduit vs la version d'avant.
+  const articleAffiche = useMemo(() => {
+    const vers = article?.versionsTexte;
+    if (!article || !etape?.dateIso || !vers?.length) return article;
+    let idx = -1;
+    for (let i = 0; i < vers.length; i++) {
+      if (vers[i].dateIso && vers[i].dateIso <= etape.dateIso) idx = i;
+    }
+    if (idx < 0) return article; // aucune version connue à cette date
+    const cur = vers[idx];
+    // On remonte jusqu'à la dernière version au contenu RÉELLEMENT différent :
+    // une transmission en navette re-« dépose » un texte identique, ce qui
+    // produisait des diffs vides et déroutants ("adopté → déposé, aucun écart").
+    const curKey = cur.alineas.join("\n");
+    let prev = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (vers[i].alineas.join("\n") !== curKey) {
+        prev = vers[i];
+        break;
+      }
+    }
+    return {
+      ...article,
+      texte: cur.alineas.join("\n\n"),
+      diffTexte: prev ? diffLines(prev.alineas, cur.alineas) : undefined,
+      diffTexteInfo: prev ? { avant: prev.label, apres: cur.label } : undefined,
+    };
+  }, [article, etape]);
 
   const statutParArticle: Record<string, StatutAmendement> = Object.fromEntries(
     articles.filter((a) => a.amendementActuel).map((a) => [a.numero, a.amendementActuel!.statut])
@@ -80,7 +136,8 @@ export default function LoiPageClient({
         {etape && !estVueSimple && article && (
           <>
             <div className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-700">
-              Version consultée : <span className="font-medium">{etape.version}</span> — {etape.label} ({etape.date})
+              📍 Vous consultez le texte à l&apos;étape : <span className="font-medium">{etape.label}</span>
+              {etape.date && <> — {etape.date}</>}
             </div>
 
             <div className="rounded-2xl border border-gray-200 bg-white p-5">
@@ -95,7 +152,7 @@ export default function LoiPageClient({
                   />
                 </div>
                 <div className="col-span-3">
-                  <ArticleTexte article={article} amendement={amendementAffiche} diff={diff} />
+                  <ArticleTexte article={articleAffiche ?? article} amendement={amendementAffiche} diff={diff} />
                 </div>
               </div>
             </div>
