@@ -30,10 +30,10 @@ const icones = {
 
 export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
   const cards = [
-    { label: "Amendements", value: stats.amendements, sub: `dont ${stats.amendementsAdoptes} adoptés`, icone: icones.amendements, bg: "bg-blue-100", fg: "text-blue-600" },
-    { label: "Députés impliqués", value: stats.deputesImpliques, sub: `sur ${stats.deputesTotal}`, icone: icones.deputes, bg: "bg-orange-100", fg: "text-orange-600" },
-    { label: "Votes enregistrés", value: stats.votes, sub: "scrutins publics", icone: icones.votes, bg: "bg-purple-100", fg: "text-purple-600" },
-    { label: "Débats", value: stats.heuresDebat, sub: "heures de débats", icone: icones.debats, bg: "bg-pink-100", fg: "text-pink-600" },
+    { label: "Amendements", value: stats.amendements, sub: `dont ${stats.amendementsAdoptes} adoptés`, icone: icones.amendements, bg: "bg-blue-100", fg: "text-blue-600", dispo: true },
+    { label: "Députés impliqués", value: stats.deputesImpliques, sub: `sur ${stats.deputesTotal}`, icone: icones.deputes, bg: "bg-[#e6e6f1]", fg: "text-[#000175]", dispo: true },
+    { label: "Votes enregistrés", value: stats.votes, sub: "scrutins publics", icone: icones.votes, bg: "bg-purple-100", fg: "text-purple-600", dispo: stats.votes > 0 },
+    { label: "Débats", value: stats.heuresDebat, sub: "heures de débats", icone: icones.debats, bg: "bg-pink-100", fg: "text-pink-600", dispo: stats.heuresDebat > 0 },
   ];
   return (
     <div className="grid grid-cols-4 gap-4">
@@ -43,8 +43,17 @@ export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
             <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${c.bg} ${c.fg}`}>{c.icone}</span>
             <span className="text-xs text-gray-500">{c.label}</span>
           </div>
-          <div className="text-2xl font-bold text-slate-900">{c.value.toLocaleString("fr-FR")}</div>
-          <div className="text-xs text-gray-400">{c.sub}</div>
+          {c.dispo ? (
+            <>
+              <div className="text-2xl font-bold text-slate-900">{c.value.toLocaleString("fr-FR")}</div>
+              <div className="text-xs text-gray-400">{c.sub}</div>
+            </>
+          ) : (
+            <>
+              <div className="text-lg font-medium text-gray-300">non disponible</div>
+              <div className="text-xs text-gray-300">bientôt</div>
+            </>
+          )}
         </div>
       ))}
     </div>

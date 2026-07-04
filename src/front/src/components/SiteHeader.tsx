@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import TransitionLink from "@/components/TransitionLink";
 
 const NAV = ["Explorer les lois"];
 
@@ -12,7 +11,7 @@ export default function SiteHeader() {
 
   return (
     <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-      <TransitionLink href="/" className="flex items-center gap-2">
+      <Link href="/" className="flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
             <path d="M12 3l8 4v2H4V7l8-4z" strokeLinejoin="round" />
@@ -24,7 +23,7 @@ export default function SiteHeader() {
           <div className="text-lg font-bold leading-tight text-slate-900">LoiHub</div>
           <div className="text-[11px] leading-tight text-gray-500">Le GitHub de la loi</div>
         </div>
-      </TransitionLink>
+      </Link>
 
       <nav className="hidden items-center gap-6 text-sm lg:flex">
         {NAV.map((item) => {
@@ -53,16 +52,16 @@ export default function SiteHeader() {
           À propos
         </Link>
         {surPageLoi ? (
-          <TransitionLink
+          <Link
             href="/"
-            className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200"
+            className="rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]"
           >
             ← Retour à l&apos;accueil
-          </TransitionLink>
+          </Link>
         ) : (
           <Link
             href="/loi/1234"
-            className="rounded-lg bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-200"
+            className="rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]"
           >
             Commencer à explorer
           </Link>

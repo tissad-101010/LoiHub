@@ -163,3 +163,7 @@ vite.config.ts.timestamp-*
 /src/generated/prisma
 
 
+
+# copies de travail obsolètes (ancien front dupliqué)
+/web/
+/front/

@@ -9,6 +9,16 @@ export const badgeStatutClass: Record<StatutAmendement, string> = {
   "En discussion": "bg-blue-100 text-blue-700",
 };
 
+// Explication en langage clair de chaque statut (bulle d'aide)
+export const statutExplication: Record<StatutAmendement, string> = {
+  Adopté: "Amendement voté et intégré au texte de loi.",
+  Rejeté: "Amendement soumis au vote mais non retenu.",
+  Retiré: "Amendement retiré par son auteur avant le vote.",
+  Tombé: "Amendement devenu sans objet (souvent parce qu'un autre amendement adopté l'a rendu caduc).",
+  "Non soutenu": "Amendement non défendu en séance (auteur absent), donc non examiné.",
+  "En discussion": "Amendement déposé, en cours d'examen — pas encore tranché.",
+};
+
 export const dotStatutClass: Record<StatutAmendement, string> = {
   Adopté: "bg-green-500",
   Rejeté: "bg-red-500",

@@ -2,6 +2,12 @@ import { Article, Amendement, DiffLigne } from "@/lib/types";
 import { badgeStatutClass } from "@/lib/ui";
 import DiffViewer from "./DiffViewer";
 import TexteDiff from "./TexteDiff";
+import ResumeIABouton from "./ResumeIABouton";
+
+// `article.texte` vaut ce placeholder quand l'open data AN ne fournit pas le
+// texte articulé (cf. lib/data.ts) : dans ce cas, rien à résumer.
+const TEXTE_INDISPONIBLE = "Le texte de cet article n'est pas encore disponible";
+const texteResumable = (t: string) => t.trim().length >= 80 && !t.startsWith(TEXTE_INDISPONIBLE);
 
 export default function ArticleTexte({
   article,
@@ -23,7 +29,9 @@ export default function ArticleTexte({
           </span>
         )}
       </div>
-      <p className="mb-4 text-sm leading-relaxed text-slate-700">{article.texte}</p>
+      <p className="mb-4 whitespace-pre-line text-sm leading-relaxed text-slate-700">{article.texte}</p>
+
+      {texteResumable(article.texte) && <ResumeIABouton texte={article.texte} />}
 
       {article.diffTexte && article.diffTexte.length > 0 && (
         <TexteDiff diff={article.diffTexte} info={article.diffTexteInfo} />
