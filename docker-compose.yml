@@ -1,9 +1,9 @@
-# LoiHub — stack complète pour l'équipe.
+# LoiHub — stack complète pour les collègues.
 #
 #   docker compose up --build       -> db (restaurée depuis le dump) + front Next 16
 #   ouvrir http://localhost:3000
 #
-# Au 1er démarrage la base est peuplée automatiquement depuis docker/seed/loihub.sql.gz
+# Au 1er démarrage, la base est automatiquement peuplée depuis docker/seed/loihub.sql.gz
 # (121k amendements, 577 députés, textes de loi + diffs). Aucun import à lancer.
 #
 #   docker compose down             -> arrêt (données conservées)
@@ -22,6 +22,7 @@ services:
       - "5432:5432"
     volumes:
       - loihub-db-data:/var/lib/postgresql/data
+      # restauration auto au 1er init (postgres exécute les *.sql.gz de ce dossier)
       - ./docker/seed:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d loihub"]

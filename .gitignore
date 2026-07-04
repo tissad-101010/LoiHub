@@ -1,5 +1,15 @@
 *00Tree.html
+# On ignore les gros JSON de données brutes, MAIS on garde les fichiers de config
+# (sinon le projet n'est ni installable ni buildable depuis un clone).
 *.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!components.json
+!**/package.json
+!**/package-lock.json
+!**/tsconfig.json
+!**/components.json
 *data
 
 # Claude Code local config

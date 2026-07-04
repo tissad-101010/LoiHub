@@ -1,74 +1,105 @@
 "use client";
-import { useRef, useEffect } from "react";
-import { TransitionRouter } from "next-transition-router";
+import { createContext, useContext, useCallback, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import gsap from "gsap";
 
-// N'anime que les transitions qui entrent ou sortent d'une page loi (/loi/[id]) ;
-// toutes les autres navigations (home <-> historique <-> à propos) restent instantanées.
-function concerneUneLoi(from?: string, to?: string) {
-  return Boolean(from?.startsWith("/loi/") || to?.startsWith("/loi/"));
-}
+// Transition SVG (stroke) pilotée MANUELLEMENT (le lifecycle de
+// next-transition-router n'était pas fiable avec Next 16 / Server Components :
+// l'overlay restait figé). Ici : `navigate(href)` joue le "leave" (l'overlay se
+// dessine et couvre) -> router.push -> au changement de route, le "enter" révèle.
+// Seuls les liens qui appellent `navigate` sont animés (Suivre l'avancement,
+// retour à l'accueil, logo). Le reste navigue normalement.
+
+const TransitionCtx = createContext<(href: string) => void>(() => {});
+export const useTransitionNavigate = () => useContext(TransitionCtx);
 
 export default function TransitionProvider({ children }: { children: React.ReactNode }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const pathsRef = useRef<SVGPathElement[]>([]);
+  const router = useRouter();
+  const pathname = usePathname();
+  const revealPending = useRef(false);
+  const animating = useRef(false);
 
+  // état initial : traits invisibles
   useEffect(() => {
     if (!svgRef.current) return;
-    const paths = svgRef.current.querySelectorAll("path");
-    pathsRef.current = Array.from(paths);
-
-    pathsRef.current.forEach((path) => {
-      const length = path.getTotalLength();
-      path.style.strokeDasharray = String(length);
-      path.style.strokeDashoffset = String(length);
+    const paths = Array.from(svgRef.current.querySelectorAll("path"));
+    pathsRef.current = paths;
+    paths.forEach((p) => {
+      const len = p.getTotalLength();
+      p.style.strokeDasharray = String(len);
+      p.style.strokeDashoffset = String(len);
     });
   }, []);
 
+  // "enter" : révèle la nouvelle page, uniquement si la navigation a été
+  // déclenchée par la transition (revealPending). Aucune animation au refresh.
+  useEffect(() => {
+    if (!revealPending.current) return;
+    revealPending.current = false;
+    const paths = pathsRef.current;
+    if (!paths.length) {
+      animating.current = false;
+      return;
+    }
+    const tl = gsap.timeline({ onComplete: () => (animating.current = false) });
+    paths.forEach((p) => {
+      const len = p.getTotalLength();
+      tl.to(
+        p,
+        {
+          strokeDashoffset: -len,
+          attr: { "stroke-width": 200 },
+          duration: 0.8,
+          ease: "power1.inOut",
+          onComplete: () => gsap.set(p, { strokeDashoffset: len }),
+        },
+        0
+      );
+    });
+  }, [pathname]);
+
+  const navigate = useCallback(
+    (href: string) => {
+      const paths = pathsRef.current;
+      if (animating.current) return;
+      if (!paths.length) {
+        router.push(href);
+        return;
+      }
+      animating.current = true;
+      revealPending.current = true;
+
+      // "leave" : les traits se dessinent et couvrent l'écran, puis on navigue.
+      const tl = gsap.timeline({ onComplete: () => router.push(href) });
+      paths.forEach((p) => {
+        tl.to(
+          p,
+          {
+            strokeDashoffset: 0,
+            attr: { "stroke-width": 700 },
+            duration: 0.8,
+            ease: "power1.inOut",
+          },
+          0
+        );
+      });
+
+      // filet de sécurité : si la révélation n'arrive jamais, on débloque tout.
+      setTimeout(() => {
+        if (animating.current) {
+          paths.forEach((p) => gsap.set(p, { strokeDashoffset: p.getTotalLength() }));
+          animating.current = false;
+          revealPending.current = false;
+        }
+      }, 6000);
+    },
+    [router]
+  );
+
   return (
-    <TransitionRouter
-      auto
-      leave={(next, from, to) => {
-        if (!concerneUneLoi(from, to)) return next();
-
-        const tween = gsap.timeline({ onComplete: next });
-        pathsRef.current.forEach((path) => {
-          tween.to(
-            path,
-            {
-              strokeDashoffset: 0,
-              attr: { "stroke-width": 700 },
-              duration: 0.7,
-              ease: "power1.inOut",
-            },
-            0
-          );
-        });
-        return () => tween.kill();
-      }}
-      enter={(next, from, to) => {
-        if (!concerneUneLoi(from, to)) return next();
-
-        const tween = gsap.timeline({ onComplete: next });
-        pathsRef.current.forEach((path) => {
-          const length = path.getTotalLength();
-          tween.to(
-            path,
-            {
-              strokeDashoffset: -length,
-              attr: { "stroke-width": 200 },
-              duration: 0.7,
-              ease: "power1.inOut",
-              onComplete: () => {
-                gsap.set(path, { strokeDashoffset: length });
-              },
-            },
-            0
-          );
-        });
-        return () => tween.kill();
-      }}
-    >
+    <TransitionCtx.Provider value={navigate}>
       <div className="transition-svg">
         <svg
           ref={svgRef}
@@ -92,6 +123,6 @@ export default function TransitionProvider({ children }: { children: React.React
         </svg>
       </div>
       {children}
-    </TransitionRouter>
+    </TransitionCtx.Provider>
   );
 }
