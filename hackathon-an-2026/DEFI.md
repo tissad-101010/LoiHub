@@ -2,13 +2,15 @@
 
 ### Nom du défi
 LoiHub, Le Hub de la loi
-### Démo en ligne
-https://p2vdu3d4me.eu-west-3.awsapprunner.com/
+
 ### Description courte
 LoiHub est une plateforme qui permet d’explorer les lois françaises comme si elles étaient du code source versionné.
 
 ### Porteur
 Tahar Issad, FullStack Developer/Software Engineer student @42Paris
+
+### URL de démonstration
+https://p2vdu3d4me.eu-west-3.awsapprunner.com/
 
 ### Description longue
 **Contexte**
