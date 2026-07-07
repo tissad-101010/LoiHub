@@ -4,9 +4,9 @@
 
 LoiHub permet d'explorer les textes législatifs français comme s'ils étaient du code source versionné. Chaque projet ou proposition de loi devient un « dépôt » : on voit son parcours (dépôt → commission → lectures → adoption → promulgation), le diff ligne à ligne de chaque article, la chaîne des amendements (auteur, groupe, statut), les scrutins et la répartition des votes par groupe.
 
-Les données proviennent des **jeux de données ouverts de l'Assemblée nationale** (XVIIe législature). Il n'y a **pas de git** côté données : la métaphore « GitHub de la loi » est une UX, pas une implémentation — le backend reconstitue les versions successives d'un texte par des requêtes SQL sur une base PostgreSQL.
-
 https://github.com/user-attachments/assets/5db2afaa-2ef0-4482-a698-9c5027bb22a2
+
+Les données proviennent des **jeux de données ouverts de l'Assemblée nationale** (XVIIe législature). Il n'y a **pas de git** côté données : la métaphore « GitHub de la loi » est une UX, pas une implémentation — le backend reconstitue les versions successives d'un texte par des requêtes SQL sur une base PostgreSQL.
 
 Projet initié lors du **Hackathon Assemblée nationale 2026** (voir [`hackathon-an-2026/`](hackathon-an-2026/)).
 
