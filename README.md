@@ -8,6 +8,8 @@ Les données proviennent des **jeux de données ouverts de l'Assemblée national
 
 Projet initié lors du **Hackathon Assemblée nationale 2026** (voir [`hackathon-an-2026/`](hackathon-an-2026/)).
 
+https://github.com/user-attachments/assets/5db2afaa-2ef0-4482-a698-9c5027bb22a2
+
 ---
 
 ## Démarrage rapide (Docker)
