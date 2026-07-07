@@ -19,7 +19,7 @@ export default async function Home() {
           <div className="mb-5 flex items-end justify-between">
             <div>
               <span className="tricolore-accent mb-3" />
-              <h2 className="titre text-2xl text-encre">Les plus discutées</h2>
+              <h2 className="titre text-2xl text-encre">Les plus discutés</h2>
               <p className="mt-1 text-sm text-gris">Les textes qui concentrent le plus d&apos;amendements.</p>
             </div>
             <Link

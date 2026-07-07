@@ -22,7 +22,7 @@ export default function HomeHero({ featured }: { featured?: LoiResume }) {
         {/* Colonne éditoriale */}
         <div className="lg:col-span-7">
           <div className="ref-mono text-xs uppercase tracking-widest text-bleu">
-            Données ouvertes · Assemblée nationale
+            Données ouvertes · Assemblée Nationale
           </div>
           <h1 className="titre mt-4 text-[2rem] leading-[1.1] text-encre sm:text-5xl sm:leading-[1.05] lg:text-6xl">
             Suivre la loi comme
@@ -30,7 +30,7 @@ export default function HomeHero({ featured }: { featured?: LoiResume }) {
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-gris sm:text-lg">
             Versions, différences ligne à ligne, amendements, exposés des motifs, cosignataires et votes nominatifs —
-            reconstitués à partir des données officielles de l&apos;Assemblée nationale.
+            reconstitués à partir des données officielles de l&apos;Assemblée Nationale.
           </p>
 
           <div className="mt-8 max-w-2xl">
