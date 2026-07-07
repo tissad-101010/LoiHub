@@ -306,7 +306,7 @@ function mapAmendement(a: AmendmentRow, deputes: DeputeMap): Amendement {
 
 // bornes pour garder un payload raisonnable côté client
 const MAX_ARTICLES = 60;
-const MAX_HISTO = 80;
+const MAX_HISTO = 200;
 
 // désignation d'article AN ("ART. 12", "ART. UNIQUE", "ART. PRELIM.") -> numéro court
 function articleNumero(designation: string | null): string {
@@ -613,10 +613,15 @@ export const getProjetLoi = cache(async function getProjetLoi(
     ? `https://www.assemblee-nationale.fr/dyn/${legislature}/dossiers/${chemin}`
     : undefined;
 
+  const ref = refDepot(dp);
+  const typeTexte = typeDossier(dossier.title ?? "");
+
   return {
     numero: dossier.uid ?? dossier.id,
-    // numéro lisible pour l'affichage (partie numérique du réf. AN)
-    numeroAffiche: dossier.uid?.match(/N(\d+)/)?.[1] ?? dossier.uid ?? "",
+    // numéro officiel de dépôt (ex. 108), pas l'identifiant technique du dossier.
+    numeroAffiche: ref.numero ?? dossier.uid?.match(/N(\d+)/)?.[1] ?? dossier.uid ?? "",
+    type: typeTexte,
+    chambreOrigine: ref.chambre ?? undefined,
     dossierUrl,
     titre: dossier.title ?? "Dossier législatif",
     statut,
@@ -689,6 +694,40 @@ function typeDossier(titre: string): string {
   if (t.startsWith("proposition de résolution")) return "Proposition de résolution";
   if (t.startsWith("projet de loi")) return "Projet de loi";
   return "Texte déposé";
+}
+
+// Numéro officiel + chambre d'origine, lus dans l'acte de dépôt INITIAL du
+// dossier. Le vrai numéro (ex. 108) est le suffixe « B0*NNN » du texteAssocie
+// du 1er dépôt — il diffère de l'identifiant technique du dossier (…N50819).
+// La chambre d'origine vient du code de l'acte (AN1-DEPOT / SN1-DEPOT) : un
+// texte né au Sénat porte un numéro Sénat, d'où l'intérêt de le préciser.
+function refDepot(dp: unknown): { numero: string | null; chambre: string | null } {
+  const depots: { date: string; code: string; texte: string }[] = [];
+  (function walk(o: unknown) {
+    if (o && typeof o === "object") {
+      if (!Array.isArray(o)) {
+        const acte = o as Record<string, unknown>;
+        if (typeof acte.codeActe === "string" && acte.codeActe.includes("DEPOT")) {
+          depots.push({
+            date: String(acte.dateActe ?? ""),
+            code: acte.codeActe,
+            texte: String(acte.texteAssocie ?? ""),
+          });
+        }
+      }
+      for (const v of Object.values(o as Record<string, unknown>)) walk(v);
+    }
+  })(dp);
+  depots.sort((a, b) => (a.date < b.date ? -1 : 1));
+  const first = depots[0];
+  if (!first) return { numero: null, chambre: null };
+  const m = first.texte.match(/B0*(\d+)/);
+  const chambre = first.code.startsWith("SN")
+    ? "Sénat"
+    : first.code.startsWith("AN")
+      ? "Assemblée nationale"
+      : null;
+  return { numero: m ? m[1] : null, chambre };
 }
 
 export const getDepute = cache(async function getDepute(
@@ -887,6 +926,7 @@ export async function getArticleDetail(
   numero: string
 ): Promise<{
   historique: Amendement[];
+  totalHistorique: number; // nb réel d'amendements sur l'article (≥ historique.length, qui est plafonné)
   influenceurs: { depute: Depute; part: number }[];
   versionsTexte: VersionArticle[];
 } | null> {
@@ -932,7 +972,7 @@ export async function getArticleDetail(
 
   // uniquement les amendements de l'article demandé
   const rows = amendements.filter((a) => articleNumero(a.article) === numero);
-  if (!rows.length) return { historique: [], influenceurs: [], versionsTexte };
+  if (!rows.length) return { historique: [], totalHistorique: 0, influenceurs: [], versionsTexte };
 
   // résolution des auteurs pour CET article seulement (≤ quelques dizaines)
   const authorIds = [...new Set(rows.map((a) => a.authorId).filter(refPropre))];
@@ -1002,7 +1042,7 @@ export async function getArticleDetail(
       part: Math.round((100 * n) / totalAdoptes),
     }));
 
-  return { historique, influenceurs, versionsTexte };
+  return { historique, totalHistorique: rows.length, influenceurs, versionsTexte };
 }
 
 // Annuaire des députés (législature 17) avec leur volume d'amendements.
@@ -1224,8 +1264,12 @@ export async function getLoisEnCours(limit = 12): Promise<LoiResume[]> {
     const dp = (rawByUid.get(r.uid) as any)?.dossierParlementaire ?? {};
     const parcours = buildParcours(dp);
     const derniere = [...parcours].reverse().find((e) => e.date);
+    const ref = refDepot(dp);
     return {
       numero: r.uid,
+      numeroAffiche: ref.numero ?? r.uid.match(/N(\d+)/)?.[1] ?? r.uid,
+      type: typeDossier(r.titre),
+      chambre: ref.chambre ?? undefined,
       titre: r.titre,
       icone: iconeFromTitre(r.titre),
       amendements: Number(r.n),
@@ -1290,8 +1334,12 @@ export async function getDossiersPage({
     const dp = (rawByUid.get(r.uid) as any)?.dossierParlementaire ?? {};
     const parcours = buildParcours(dp);
     const derniere = [...parcours].reverse().find((e) => e.date);
+    const ref = refDepot(dp);
     return {
       numero: r.uid,
+      numeroAffiche: ref.numero ?? r.uid.match(/N(\d+)/)?.[1] ?? r.uid,
+      type: typeDossier(r.titre),
+      chambre: ref.chambre ?? undefined,
       titre: r.titre,
       icone: iconeFromTitre(r.titre),
       amendements: Number(r.n),

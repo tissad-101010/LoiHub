@@ -1,9 +1,10 @@
 import { ProjetLoi } from "@/lib/types";
+import { libelleRef } from "@/lib/ui";
 
 type EnTeteLoi = Pick<
   ProjetLoi,
   "numero" | "titre" | "statut" | "statutVariant" | "dateDepot" | "datePromulgation" | "version" | "dossierUrl" | "loiPromulguee"
->;
+> & { type?: string; chambre?: string };
 
 // Couleur du badge de statut fidèle à l'état réel du texte : vert = abouti
 // (promulguée/adoptée), bleu = en cours de procédure, gris = simple dépôt.
@@ -17,7 +18,7 @@ export default function LoiHeader({ loi }: { loi: EnTeteLoi }) {
   return (
     <div className="bg-bleu p-6 text-white">
       <div className="ref-mono mb-2 inline-block rounded bg-white/10 px-2 py-1 text-xs">
-        Dossier n° {loi.numero}
+        {libelleRef(loi.type, loi.numero, loi.chambre)}
       </div>
       <h1 className="titre mb-2 text-3xl leading-tight">{loi.titre}</h1>
       <span className={`mb-4 inline-block px-2 py-1 text-xs font-medium ${BADGE_STATUT[loi.statutVariant]}`}>

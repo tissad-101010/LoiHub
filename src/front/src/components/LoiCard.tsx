@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LoiResume } from "@/lib/types";
-import { COULEUR_ACTEUR } from "@/lib/ui";
+import { COULEUR_ACTEUR, libelleRef } from "@/lib/ui";
 
 function TagEtape({ loi }: { loi: LoiResume }) {
   const c = COULEUR_ACTEUR[loi.etape.acteur];
@@ -29,7 +29,7 @@ function Chiffres({ loi }: { loi: LoiResume }) {
 }
 
 export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; layout?: "vertical" | "horizontal" }) {
-  const refDossier = loi.numero.match(/N(\d+)/)?.[1] ?? loi.numero;
+  const ref = libelleRef(loi.type, loi.numeroAffiche ?? loi.numero.match(/N(\d+)/)?.[1] ?? loi.numero, loi.chambre);
 
   if (layout === "horizontal") {
     return (
@@ -38,7 +38,7 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
         className="group grid grid-cols-[1fr_auto] items-center gap-4 border border-bordure bg-white p-4 transition hover:border-bleu hover:shadow-[0_6px_20px_rgba(0,0,18,0.07)]"
       >
         <div className="min-w-0">
-          <div className="ref-mono text-[11px] text-gris">Dossier n° {refDossier}</div>
+          <div className="ref-mono text-[11px] text-gris">{ref}</div>
           <h3 className="titre truncate text-base text-encre group-hover:text-bleu">{loi.titre}</h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-3">
             <TagEtape loi={loi} />
@@ -59,7 +59,7 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
       className="group flex flex-col border border-bordure bg-white p-5 transition hover:border-bleu hover:shadow-[0_6px_20px_rgba(0,0,18,0.07)]"
     >
       <div className="flex items-center justify-between">
-        <span className="ref-mono text-[11px] text-gris">Dossier n° {refDossier}</span>
+        <span className="ref-mono text-[11px] text-gris">{ref}</span>
         <TagEtape loi={loi} />
       </div>
       <h3 className="titre mt-3 text-lg leading-snug text-encre group-hover:text-bleu">{loi.titre}</h3>

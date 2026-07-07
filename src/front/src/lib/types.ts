@@ -66,7 +66,9 @@ export interface Article {
 
 export interface ProjetLoi {
   numero: string;
-  numeroAffiche?: string; // numéro lisible (réf. AN sans le préfixe technique)
+  numeroAffiche?: string; // numéro officiel de dépôt (ex. "108"), lu dans l'acte de dépôt initial
+  type?: string; // "Projet de loi" / "Proposition de loi" / … (déduit du titre)
+  chambreOrigine?: string; // "Sénat" ou "Assemblée nationale" (chambre du 1er dépôt)
   dossierUrl?: string; // lien vers le dossier officiel sur assemblee-nationale.fr
   titre: string;
   statut: string;
@@ -121,6 +123,9 @@ export type IconeThematique = "logement" | "energie" | "numerique";
 
 export interface LoiResume {
   numero: string;
+  numeroAffiche?: string; // numéro officiel de dépôt (ex. "108")
+  type?: string; // "Projet de loi" / "Proposition de loi" / …
+  chambre?: string; // "Sénat" ou "Assemblée nationale" (chambre d'origine)
   titre: string;
   icone: IconeThematique;
   amendements: number;

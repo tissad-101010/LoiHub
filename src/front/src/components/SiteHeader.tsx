@@ -18,7 +18,7 @@ function BlocEtat() {
           <br />
           Française
         </div>
-        <div className="mt-0.5 text-[10px] italic text-gris">Liberté · Égalité · Fraternité</div>
+        <div className="mt-0.5 hidden text-[10px] italic text-gris sm:block">Liberté · Égalité · Fraternité</div>
       </div>
     </div>
   );
@@ -32,7 +32,7 @@ export default function SiteHeader() {
     return (
       <Link
         href={href}
-        className={`px-3 py-4 text-sm font-medium transition ${
+        className={`px-2 py-4 text-sm font-medium transition sm:px-3 ${
           actif
             ? "text-bleu shadow-[inset_0_-2px_0_0_var(--color-bleu)]"
             : "text-encre hover:text-bleu"
@@ -45,9 +45,9 @@ export default function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-bordure bg-white">
-      <div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6">
         {/* Bloc État + service */}
-        <Link href="/" className="flex shrink-0 items-center gap-4">
+        <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-4">
           <BlocEtat />
           <span className="hidden h-10 w-px bg-bordure sm:block" />
           <span className="hidden sm:block">

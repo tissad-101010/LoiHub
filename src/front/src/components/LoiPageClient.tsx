@@ -44,6 +44,7 @@ import { Amendement, Depute, ProjetLoi, StatutAmendement, VersionArticle } from 
 type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
 type ArticleDetail = {
   historique: Amendement[];
+  totalHistorique?: number;
   influenceurs: { depute: Depute; part: number }[];
   versionsTexte: VersionArticle[];
 };
@@ -59,6 +60,8 @@ export default function LoiPageClient({
 }) {
   const loi = {
     numero: projet.numeroAffiche ?? projet.numero,
+    type: projet.type,
+    chambre: projet.chambreOrigine,
     titre: projet.titre,
     statut: projet.statut,
     statutVariant: projet.statutVariant,
@@ -104,7 +107,7 @@ export default function LoiPageClient({
         if (!annule)
           setDetails((prev) => ({
             ...prev,
-            [articleActifNumero]: { historique: [], influenceurs: [], versionsTexte: [] },
+            [articleActifNumero]: { historique: [], totalHistorique: 0, influenceurs: [], versionsTexte: [] },
           }));
       })
       .finally(() => {
@@ -116,6 +119,7 @@ export default function LoiPageClient({
   }, [articleActifNumero, etape, estVueSimple, details, projet.numero]);
 
   const historique = enrichi?.historique ?? [];
+  const totalHistorique = enrichi?.totalHistorique ?? historique.length;
   const influenceurs = enrichi?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
 
@@ -221,6 +225,7 @@ export default function LoiPageClient({
               <>
                 <HistoriqueAmendements
                   historique={historique}
+                  total={totalHistorique}
                   amendementActifNumero={amendementAffiche?.numero}
                   etapeDate={etape.date}
                   onSelect={setAmendementActif}

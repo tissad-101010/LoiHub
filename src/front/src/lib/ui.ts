@@ -11,6 +11,16 @@ export function texteEstPartiel(alineas: string[] | undefined | null): boolean {
   return marqueurs / alineas.length >= 0.34;
 }
 
+// Référence lisible d'un texte : « Proposition de loi n° 108 (Sénat) »,
+// « Projet de loi n° 1906 ». La chambre n'est précisée que pour le Sénat,
+// puisqu'un texte né au Sénat porte un numéro Sénat (source de confusion sinon).
+export function libelleRef(type?: string, numero?: string, chambre?: string): string {
+  const t = type && type !== "Texte déposé" ? type : "Dossier";
+  const n = numero ? ` n° ${numero}` : "";
+  const c = chambre === "Sénat" ? " (Sénat)" : "";
+  return `${t}${n}${c}`;
+}
+
 export const badgeStatutClass: Record<StatutAmendement, string> = {
   Adopté: "bg-green-100 text-green-700",
   Rejeté: "bg-red-100 text-red-700",
