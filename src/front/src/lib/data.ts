@@ -593,7 +593,7 @@ export const getProjetLoi = cache(async function getProjetLoi(
   let statut: string;
   let statutVariant: "termine" | "encours" | "depose";
   if (aPromulgation) {
-    statut = "Promulguée";
+    statut = "Promulgué";
     statutVariant = "termine";
   } else if (aAdoption) {
     statut = "Adoptée";
