@@ -5,11 +5,9 @@
 !package.json
 !package-lock.json
 !tsconfig.json
-!components.json
 !**/package.json
 !**/package-lock.json
 !**/tsconfig.json
-!**/components.json
 *data
 
 
@@ -159,10 +157,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 /src/generated/prisma
-
-/src/generated/prisma
-
-
 
 # copies de travail obsolètes (ancien front dupliqué)
 /web/

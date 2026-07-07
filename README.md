@@ -1,80 +1,90 @@
-# $\color{cornflowerblue}{\huge\text{LoiHub}}$
-## $\color{midnightblue}{\small\text{Le Hub de la loi}}$
+# LoiHub — le dépôt de la loi
 
-> *Suivre une loi comme on suit un dépôt de code : commits, diffs, contributeurs.*
+> *Suivre une loi comme on suit un dépôt de code : parcours, diffs, amendements, contributeurs.*
 
-> [!NOTE]
-> **TODO** : ajouter ici l'arborescence du README (sommaire) et la section *Getting Started* (Installation + Environment Configuration) une fois la stack stabilisée.
+LoiHub permet d'explorer les textes législatifs français comme s'ils étaient du code source versionné. Chaque projet ou proposition de loi devient un « dépôt » : on voit son parcours (dépôt → commission → lectures → adoption → promulgation), le diff ligne à ligne de chaque article, la chaîne des amendements (auteur, groupe, statut), les scrutins et la répartition des votes par groupe.
 
-## Description
+Les données proviennent des **jeux de données ouverts de l'Assemblée nationale** (XVIIe législature). Il n'y a **pas de git** côté données : la métaphore « GitHub de la loi » est une UX, pas une implémentation — le backend reconstitue les versions successives d'un texte par des requêtes SQL sur une base PostgreSQL.
 
-LoiHub est une plateforme qui permet aux citoyens, parlementaires et juristes de suivre en temps réel l'évolution d'une loi ou d'une proposition de loi : quels articles ont changé, qui a proposé quoi (amendements), et pourquoi.
-
-La métaphore est celle de GitHub — diffs, historique, contributeurs — mais le projet **n'utilise pas git**. Le backend repose sur des données relationnelles construites à partir des jeux de données ouverts de l'Assemblée nationale et du Sénat, interrogées via SQL pour reconstituer les versions successives d'un texte et la chaîne des amendements qui y ont mené.
-
-Projet développé dans le cadre du **Hackathon Assemblée nationale 2026** ([hackathon2026.assemblee-nationale.fr](https://hackathon2026.assemblee-nationale.fr/)).
+Projet initié lors du **Hackathon Assemblée nationale 2026** (voir [`hackathon-an-2026/`](hackathon-an-2026/)).
 
 ---
 
-## Enjeux
+## Démarrage rapide (Docker)
 
-Suivre la vie d'une loi aujourd'hui reste un exercice réservé aux initiés :
+Le seul prérequis est **Docker** (avec Docker Compose v2). La base est **automatiquement restaurée** depuis le dump versionné (`docker/seed/loihub.sql.gz`) — aucun import manuel à lancer.
 
-- Les textes législatifs évoluent au fil de centaines d'amendements, **sans vue d'ensemble accessible**
-- Le grand public **n'a pas accès à une lecture claire** de ce qui change concrètement dans un article
-- Les parlementaires manquent d'un outil simple pour **suivre l'impact des amendements** de leurs collègues ou groupes
-- Les juristes doivent reconstituer **à la main** l'historique précis des versions d'un article et le sourcer
+```bash
+make up
+```
 
-LoiHub répond à ces manques en traitant chaque loi comme un dépôt de code : versionné, diffable, attribuable.
+Cette commande :
+1. démarre PostgreSQL et restaure le dump au premier lancement (amendements, députés, textes de loi, scrutins & votes, exposés des motifs, cosignataires) ;
+2. démarre Meilisearch et **indexe la recherche** (lois / amendements / députés) ;
+3. démarre le front Next.js.
 
-| Besoin | Approche actuelle | LoiHub |
+Puis ouvrir **http://localhost:3000**.
+
+### Autres commandes
+
+| Commande | Effet |
+|---|---|
+| `make up` | Build + démarre toute la stack, indexe la recherche |
+| `make down` | Arrête les conteneurs (**données conservées**) |
+| `make re` | `down` puis `up` |
+| `make fclean` | Arrête **et réinitialise la base** (le dump est re-restauré au prochain `up`) |
+| `make index` | Ré-indexe la recherche à la demande, sans redémarrer la stack |
+
+Sans `make`, l'équivalent de `make up` est `docker compose up -d --build --remove-orphans`.
+
+### Variables d'environnement (optionnelles)
+
+Toutes ont une valeur par défaut ; rien n'est requis pour démarrer.
+
+| Variable | Défaut | Rôle |
 |---|---|---|
-| Comprendre ce qui change dans un article | ❌ Jargon juridique, PDF dispersés | ✅ Diff ligne à ligne, résumé en langage clair |
-| Retracer un amendement | ❌ Recherche manuelle dans les dossiers | ✅ Frise chronologique par article |
-| Suivre le parcours d'un texte | ❌ Dossier législatif brut | ✅ Timeline verticale illustrée |
-| Identifier qui a influencé un article | ❌ Quasi impossible sans dépouillement | ✅ Classement par % de contribution |
-| Sourcer une modification | ❌ Croisement manuel de plusieurs bases | ✅ Bloc "Origine de cette modification" |
+| `APP_PORT` | `3000` | Port exposé du front |
+| `MEILI_PORT` | `7700` | Port exposé de Meilisearch |
+| `MEILI_MASTER_KEY` | `loihub-dev-master-key` | Clé maître Meilisearch |
+| `MISTRAL_API_KEY` | — | Active le résumé d'amendement par IA (facultatif) |
 
 ---
 
-## Fonctionnalités de la maquette
+## Structure du dépôt
 
-La maquette front couvre la page dédiée à une loi (ex. *Projet de loi n°1234 — Logement abordable*) :
+```
+.
+├── docker-compose.yml      # stack complète : db + meilisearch + indexer + web
+├── Makefile                # raccourcis (up / down / re / fclean / index)
+├── docker/seed/            # dump PostgreSQL restauré automatiquement
+├── hackathon-an-2026/      # contexte & présentation du projet
+└── src/front/              # l'application (Next.js) — tout le code vit ici
+```
 
-- **En-tête** — numéro, titre, statut (déposé / adopté / promulgué), dates clés, lien vers le dossier législatif
-- **Parcours législatif** — timeline verticale : dépôt → commission → 1ère lecture AN → Sénat → 2nde lecture → adoption → promulgation
-- **Stats globales** — nombre d'amendements (total + adoptés), députés impliqués (sur 577), scrutins publics, heures de débat
-- **Explorateur de texte** — sommaire hiérarchique Titre > Chapitre > Article, avec mention *"Modifié par amendement n°X"* et bloc *"Origine de cette modification"* (auteur, groupe, statut, dates, lien vers l'amendement)
-- **Diff viewer** — comparaison ligne à ligne façon code entre deux versions d'un article (rouge = supprimé, vert = ajouté)
-- **Historique des amendements** — frise chronologique par article : texte initial → amendements successifs (retiré / rejeté / adopté) → version finale
-- **"Qui a influencé cet article ?"** — classement des députés par % de contribution au texte final, coloré par groupe politique
-
-> Le résumé d'amendement en langage clair est généré par IA et affiché directement dans le bloc "Origine de cette modification".
+L'application est **entièrement contenue dans [`src/front/`](src/front/)** (code, schéma Prisma, scripts d'indexation, Dockerfile).
 
 ---
 
-## Architecture technique
-
-**Front-end** — codé à la main à partir de la maquette existante (charte bleu marine / tricolore, cards, timeline, diff viewer), avec Next.js, Tailwind et shadcn/ui.
-
-**Données** — ingestion des jeux de données ouverts de l'Assemblée nationale (et éventuellement du Sénat / d'une base unifiée) dans une base PostgreSQL via Prisma, puis requêtes SQL pour reconstituer :
-
-- les versions successives d'un article
-- la chaîne des amendements (auteur, groupe, statut, dates)
-- les stats agrégées (nb amendements, nb députés, votes, débats)
-- le score d'influence par député sur un article donné
-
-**Pas de version-control (git) côté données** — git n'intervient nulle part dans le pipeline : la métaphore "GitHub de la loi" est purement une UX, pas une implémentation.
+## Stack technique
 
 | Couche | Techno |
 |---|---|
-| Framework | Next.js 14 (App Router) |
-| UI | Tailwind CSS, shadcn/ui (Radix), lucide-react |
-| ORM / DB | Prisma + PostgreSQL |
-| Files d'attente | BullMQ + Redis (ioredis) |
-| Validation | Zod |
-| Tests | Vitest |
-| Diagrammes | React Flow |
+| Framework | Next.js 16 (App Router) · React 19 · TypeScript |
+| UI | Tailwind CSS v4 · design inspiré du Système de Design de l'État (DSFR) |
+| Base de données | PostgreSQL 17 · Prisma |
+| Recherche | Meilisearch |
+| Orchestration | Docker Compose |
+
+---
+
+## Fonctionnalités
+
+- **Registre législatif** paginé — tous les dossiers de la législature, classés par volume d'amendements, avec recherche.
+- **Page d'une loi** — en-tête (statut, dates, lien Légifrance), parcours législatif, répartition des votes par groupe, scrutins, décisions du Conseil constitutionnel.
+- **Explorateur de texte** — sommaire Titre › Chapitre › Article ; à chaque étape du parcours, le texte de l'article **tel qu'il était** à cette date, avec le diff ligne à ligne introduit par rapport à la version précédente.
+- **Amendements** — dispositif intégral, exposé des motifs, auteur, cosignataires, statut.
+- **Députés** — annuaire, profil, bilan de votes et activité.
+- **Recherche instantanée** sur les lois, amendements et députés (Meilisearch).
 
 ---
 
@@ -82,27 +92,22 @@ La maquette front couvre la page dédiée à une loi (ex. *Projet de loi n°1234
 
 Catalogue de référence : [Hackathon AN 2026 — Ressources](https://hackathon2026.assemblee-nationale.fr/ressources)
 
-| Catégorie | Source | Format | Périmètre |
-|---|---|---|---|
-| Dossiers législatifs | [data.assemblee-nationale.fr](https://data.assemblee-nationale.fr/travaux-parlementaires/dossiers-legislatifs) | XML/JSON | XVIIe législature (+ XIV-XVI) |
-| Dossiers législatifs | [data.senat.fr/dosleg](https://data.senat.fr/dosleg/) | PostgreSQL | depuis oct. 1977 |
-| Dossiers législatifs | Légifrance (DOLE, via data.gouv.fr) | XML | depuis juin 2002 |
-| Amendements (source principale) | [data.assemblee-nationale.fr — tous les amendements](https://data.assemblee-nationale.fr/travaux-parlementaires/amendements/tous-les-amendements) | XML/JSON | toutes lectures, XVIIe législature |
-| Amendements | [data.senat.fr/ameli](https://data.senat.fr/ameli/) | PostgreSQL | temps réel, depuis 2001/2010 |
-| Députés en exercice | [data.assemblee-nationale.fr — deputes-en-exercice](https://data.assemblee-nationale.fr/acteurs/deputes-en-exercice) | CSV/XML | depuis le 8 juillet 2024 |
-| Historique des députés | [data.assemblee-nationale.fr — historique-des-deputes](https://data.assemblee-nationale.fr/acteurs/historique-des-deputes) | XML/JSON | depuis juin 1997 |
-| Base unifiée (à évaluer) | Base PostgreSQL AN + Sénat + Légifrance + Service Public | PostgreSQL | XIVe législature+ |
-| API unifiée | [tricoteuses.fr — api-canutes-legifrance](https://www.tricoteuses.fr/services/api-canutes-legifrance/documentation) | REST JSON | — |
+| Catégorie | Source |
+|---|---|
+| Dossiers législatifs | [data.assemblee-nationale.fr — dossiers-legislatifs](https://data.assemblee-nationale.fr/travaux-parlementaires/dossiers-legislatifs) |
+| Amendements | [data.assemblee-nationale.fr — tous-les-amendements](https://data.assemblee-nationale.fr/travaux-parlementaires/amendements/tous-les-amendements) |
+| Scrutins publics | [data.assemblee-nationale.fr — scrutins](https://data.assemblee-nationale.fr/travaux-parlementaires/votes) |
+| Députés | [data.assemblee-nationale.fr — deputes-en-exercice](https://data.assemblee-nationale.fr/acteurs/deputes-en-exercice) |
 
 ---
 
-## Prochaines étapes
+## Développement local (hors Docker)
 
-> [!NOTE]
-> **TODO** : à compléter (roadmap technique — choix du schéma Postgres, requêtes SQL clés, branchement du front, résumé IA / score d'influence).
+Le chemin recommandé reste `make up`. Pour travailler directement sur le front, il faut néanmoins une base PostgreSQL et un Meilisearch accessibles (par ex. lancés via `docker compose up -d db meilisearch`) :
 
----
-
-## Contributions
-
-Projet développé dans le cadre du **Hackathon Assemblée nationale 2026**.
+```bash
+cd src/front
+npm install
+# renseigner DATABASE_URL, MEILI_HOST, MEILI_MASTER_KEY (voir docker-compose.yml)
+npm run dev
+```
