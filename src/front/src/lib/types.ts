@@ -22,13 +22,16 @@ export interface DiffLigne {
 }
 
 export interface Amendement {
+  uid?: string; // identifiant AN, pour la page /amendement/[id]
   numero: string;
   auteur: Depute;
   statut: StatutAmendement;
+  alinea?: string; // alinéa visé, champ officiel AN (ex. "Alinéa 13", "Après l'alinéa 7")
   dateDepot: string;
   dateAdoption?: string;
-  resumeIA?: string;
-  diff?: { avant: DiffLigne[]; apres: DiffLigne[] };
+  // Dispositif de l'amendement (prose officielle nettoyée) : l'instruction telle
+  // que publiée par l'AN, affichée verbatim (pas de diff synthétisé, trompeur).
+  dispositif?: string;
 }
 
 export type ActeurEtape = "depot" | "commission" | "assemblee" | "senat" | "adoption" | "promulgation";
@@ -67,8 +70,17 @@ export interface ProjetLoi {
   dossierUrl?: string; // lien vers le dossier officiel sur assemblee-nationale.fr
   titre: string;
   statut: string;
+  // Nature du statut, pour colorer le badge sans se fier au libellé :
+  // "termine" (promulguée/adoptée) = vert, "encours" = bleu, "depose" = neutre.
+  statutVariant: "termine" | "encours" | "depose";
   dateDepot: string;
   datePromulgation: string;
+  // Loi officielle une fois promulguée (n° JO + lien Légifrance), si disponible.
+  loiPromulguee?: { numero: string; date: string; urlLegifrance?: string };
+  // Saisines du Conseil constitutionnel (si le texte a été déféré).
+  conseilConstit?: { saisines: { date: string; par: string }[] };
+  // Scrutins publics rattachés à ce dossier (votes solennels, sur articles…).
+  scrutins: Scrutin[];
   version: string;
   parcours: EtapeParcours[];
   stats: {
@@ -79,7 +91,30 @@ export interface ProjetLoi {
     votes: number;
     heuresDebat: number;
   };
+  repartitionGroupes: GroupeStat[];
   articles: Article[];
+}
+
+// Répartition des amendements d'un dossier par groupe politique (auteurs identifiés).
+export interface GroupeStat {
+  groupe: string; // abréviation AN (ex. "RN")
+  libelle: string; // nom complet
+  couleur: string;
+  total: number;
+  adoptes: number;
+}
+
+// Un scrutin public (vote solennel/ordinaire) avec son résultat.
+export interface Scrutin {
+  uid: string;
+  numero?: string;
+  date: string;
+  titre: string;
+  adopte: boolean; // sort = adopté
+  sortLibelle?: string;
+  pour: number;
+  contre: number;
+  abstention: number;
 }
 
 export type IconeThematique = "logement" | "energie" | "numerique";
@@ -103,11 +138,12 @@ export interface TexteDepose {
   amendements: number;
 }
 
-// Un vote nominatif d'un député (dataset scrutins — pas encore importé).
+// Un vote nominatif d'un député sur un scrutin public.
 export interface VoteDepute {
   objet: string;
-  position: "Pour" | "Contre" | "Abstention";
+  position: "Pour" | "Contre" | "Abstention" | "Non-votant";
   date: string;
+  adopte: boolean; // résultat du scrutin
   loiUid?: string;
 }
 
@@ -136,4 +172,26 @@ export interface DeputeProfil {
   derniersAmendements: (Amendement & { dossierUid?: string; dossierTitre?: string })[];
   textesDeposes: TexteDepose[];
   votes: VoteDepute[];
+  // Bilan des positions de vote (sur tous les scrutins publics).
+  bilanVotes?: { pour: number; contre: number; abstention: number; nonVotant: number };
+  // Activité : nb d'amendements déposés par mois (pour une frise).
+  activite: { mois: string; libelle: string; total: number }[];
+}
+
+// Détail d'un amendement (page /amendement/[id]).
+export interface AmendementDetail {
+  uid: string;
+  numero: string;
+  auteur: Depute;
+  statut: StatutAmendement;
+  sort?: string; // sort brut AN (ex. "Adopté", "Retiré avant séance")
+  article?: string; // désignation (ex. "ART. 3")
+  alinea?: string; // alinéa visé
+  dateDepot: string;
+  dateSort?: string;
+  dispositif?: string;
+  exposeSommaire?: string; // « pourquoi » rédigé par l'auteur (exposé des motifs)
+  cosignataires: Depute[]; // co-auteurs de l'amendement
+  dossierUid?: string;
+  dossierTitre?: string;
 }

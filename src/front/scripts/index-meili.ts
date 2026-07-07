@@ -172,10 +172,27 @@ async function indexAmendements() {
 
 // ------------------------------ main -----------------------------
 
+// Postgres redémarre brièvement après la restauration du dump (init) : le
+// healthcheck peut passer juste avant ce redémarrage. On attend donc que la
+// base accepte réellement les requêtes avant d'indexer (fiabilise `make up`).
+async function attendreBase(essais = 30) {
+  for (let i = 1; i <= essais; i++) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return;
+    } catch {
+      console.log(`  base pas encore prête (${i}/${essais})…`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw new Error("Base de données injoignable après plusieurs tentatives.");
+}
+
 async function main() {
   const t0 = Date.now();
   console.log(`Indexation Meilisearch -> ${process.env.MEILI_HOST ?? "http://localhost:7700"}`);
   await meili.health(); // échoue vite si le serveur n'est pas joignable
+  await attendreBase();
 
   await indexDeputes();
   await indexDossiers();

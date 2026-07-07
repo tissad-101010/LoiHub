@@ -165,6 +165,10 @@ model Amendment {
   title     String?
   content   String?
 
+  // Ajoutés par backfill depuis les fichiers sources AN (exposé + cosignataires).
+  exposeSommaire String?
+  cosignataires  String[]
+
   status    AmendmentStatus @default(PENDING)
 
   sort      String?
@@ -194,6 +198,28 @@ model Amendment {
   @@index([lawId])
   @@index([authorId])
   @@index([status])
+}
+
+//
+// 🗳️ Scrutin public (importé du dataset AN "Scrutins"). Les positions
+// nominatives par député sont dans la table "ScrutinVote" (interrogée en SQL
+// brut pour éviter des millions de lignes côté Prisma).
+//
+model Scrutin {
+  id          String    @id @default(cuid())
+  uid         String    @unique
+  numero      String?
+  dateScrutin DateTime?
+  titre       String?
+  sortCode    String?
+  sortLibelle String?
+  pour        Int?
+  contre      Int?
+  abstention  Int?
+  nonVotant   Int?
+  dossierUid  String?
+
+  @@index([dossierUid])
 }
 
 //

@@ -16,14 +16,14 @@ export default function Sommaire({
   onSelect: (article: string) => void;
 }) {
   return (
-    <div className="text-sm">
-      <h3 className="mb-3 font-semibold text-slate-900">Sommaire</h3>
+    <div className="text-sm md:sticky md:top-4 md:max-h-[75vh] md:overflow-y-auto md:pr-1">
+      <h3 className="mb-3 titre text-xl text-encre">Sommaire</h3>
       {sommaire.map((t) => (
         <div key={t.titre} className="mb-2">
-          <div className="py-1 text-gray-500">{t.titre}</div>
+          <div className="py-1 text-gris">{t.titre}</div>
           {t.chapitres.map((c, i) => (
             <div key={i} className="pl-2">
-              {c.nom && <div className="py-1 text-gray-500">{c.nom}</div>}
+              {c.nom && <div className="py-1 text-gris">{c.nom}</div>}
               {c.articles.map((a) => {
                 const numero = a.replace("Article ", "");
                 const statut = statutParArticle?.[numero];
@@ -33,8 +33,8 @@ export default function Sommaire({
                     onClick={() => onSelect(a)}
                     className={`flex w-full items-center gap-2 rounded px-2 py-1 pl-4 text-left ${
                       articleActif === a
-                        ? "bg-blue-600 font-medium text-white"
-                        : "text-slate-700 hover:bg-gray-100"
+                        ? "bg-bleu font-medium text-white"
+                        : "text-encre hover:bg-fond-alt"
                     }`}
                   >
                     <span className="flex-1">{a}</span>

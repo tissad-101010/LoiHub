@@ -46,7 +46,7 @@ export default function ResumeIABouton({ texte }: { texte: string }) {
           type="button"
           onClick={resumer}
           disabled={etat === "loading"}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-bleu px-3 py-1.5 text-sm font-medium text-white transition hover:bg-bleu-survol disabled:cursor-not-allowed disabled:opacity-60"
         >
           {etat === "loading" ? "Résumé en cours…" : "Résumer l'article (IA)"}
         </button>
@@ -62,12 +62,12 @@ export default function ResumeIABouton({ texte }: { texte: string }) {
       )}
 
       {etat === "done" && (
-        <div className="rounded-lg bg-blue-50 p-4">
-          <div className="mb-1 text-sm font-medium text-slate-900">
+        <div className="rounded-lg bg-bleu-100 p-4">
+          <div className="mb-1 text-sm font-medium text-encre">
             Résumé de l&apos;article par IA
           </div>
-          <p className="whitespace-pre-line text-sm text-slate-700">{resume}</p>
-          <p className="mt-2 text-xs text-slate-400">Généré par Mistral — peut contenir des imprécisions.</p>
+          <p className="whitespace-pre-line text-sm text-encre">{resume}</p>
+          <p className="mt-2 text-xs text-gris">Généré par Mistral — peut contenir des imprécisions.</p>
         </div>
       )}
     </div>

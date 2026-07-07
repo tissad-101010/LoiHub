@@ -3,45 +3,68 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import HomeSearch from "@/components/HomeSearch";
 
+// Bloc « Marianne » officiel : drapeau tricolore + RÉPUBLIQUE FRANÇAISE + devise.
+function BlocEtat() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="drapeau rounded-[1px] overflow-hidden ring-1 ring-black/5" aria-hidden>
+        <span className="bg-bleu" />
+        <span className="bg-white" />
+        <span className="bg-rouge" />
+      </span>
+      <div className="leading-[1.05]">
+        <div className="text-[13px] font-bold uppercase tracking-wide text-encre">
+          République
+          <br />
+          Française
+        </div>
+        <div className="mt-0.5 text-[10px] italic text-gris">Liberté · Égalité · Fraternité</div>
+      </div>
+    </div>
+  );
+}
+
 export default function SiteHeader() {
   const pathname = usePathname();
-  const surPageLoi = pathname?.startsWith("/loi/");
+
+  const lien = (href: string, label: string) => {
+    const actif = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+    return (
+      <Link
+        href={href}
+        className={`px-3 py-4 text-sm font-medium transition ${
+          actif
+            ? "text-bleu shadow-[inset_0_-2px_0_0_var(--color-bleu)]"
+            : "text-encre hover:text-bleu"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-            <path d="M12 3l8 4v2H4V7l8-4z" strokeLinejoin="round" />
-            <path d="M5 10v8M9 10v8M15 10v8M19 10v8" strokeLinecap="round" />
-            <path d="M4 20h16" strokeLinecap="round" />
-          </svg>
-        </span>
-        <div>
-          <div className="text-lg font-bold leading-tight text-slate-900">LoiHub</div>
-          <div className="text-[11px] leading-tight text-gray-500">Le GitHub de la loi</div>
-        </div>
-      </Link>
-
-      <div className="mx-6 hidden max-w-md flex-1 md:block">
-        <HomeSearch compact />
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Link
-          href="/a-propos"
-          className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-gray-50"
-        >
-          À propos
+    <header className="sticky top-0 z-40 border-b border-bordure bg-white">
+      <div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-3">
+        {/* Bloc État + service */}
+        <Link href="/" className="flex shrink-0 items-center gap-4">
+          <BlocEtat />
+          <span className="hidden h-10 w-px bg-bordure sm:block" />
+          <span className="hidden sm:block">
+            <span className="titre block text-xl leading-none text-encre">LoiHub</span>
+            <span className="ref-mono text-[10px] uppercase tracking-wider text-gris">le dépôt de la loi</span>
+          </span>
         </Link>
-        {surPageLoi && (
-          <Link
-            href="/"
-            className="rounded-lg bg-[#e6e6f1] px-4 py-2 text-sm font-medium text-[#000175] hover:bg-[#cccce3]"
-          >
-            ← Retour à l&apos;accueil
-          </Link>
-        )}
+
+        <div className="ml-auto hidden max-w-sm flex-1 lg:block">
+          <HomeSearch compact />
+        </div>
+
+        <nav className="ml-auto flex items-center lg:ml-0">
+          {lien("/lois", "Lois")}
+          {lien("/deputes", "Députés")}
+          {lien("/a-propos", "À propos")}
+        </nav>
       </div>
     </header>
   );

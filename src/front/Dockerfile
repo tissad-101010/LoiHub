@@ -1,8 +1,13 @@
 # Front LoiHub (Next 16) — build de production
 FROM node:22-alpine
 
-# Prisma a besoin d'openssl + compat libc sur Alpine
-RUN apk add --no-cache openssl libc6-compat
+# Prisma a besoin d'openssl + compat libc sur Alpine ; tzdata pour que le
+# fuseau Europe/Paris soit reconnu (dates législatives en heure de Paris).
+RUN apk add --no-cache openssl libc6-compat tzdata
+
+# Les dates de l'open data AN sont en heure de Paris (minuit +01:00/+02:00).
+# Sans ce fuseau, un conteneur en UTC affiche la veille (getDate décalé d'un jour).
+ENV TZ=Europe/Paris
 
 WORKDIR /app
 

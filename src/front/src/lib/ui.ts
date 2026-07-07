@@ -1,5 +1,16 @@
 import { ActeurEtape, StatutAmendement } from "./types";
 
+// Un « texte adopté en séance » ne réécrit pas l'article en entier : il se
+// contente de marqueurs « (Non modifiée) » / « (Supprimé) » pour les parties
+// inchangées ou retirées. Comparé (diff) à un texte complet, il ferait croire
+// à tort que tout le contenu a été supprimé -> on identifie ces versions
+// partielles pour ne pas les utiliser comme base de comparaison.
+export function texteEstPartiel(alineas: string[] | undefined | null): boolean {
+  if (!alineas || alineas.length === 0) return true;
+  const marqueurs = alineas.filter((a) => /\(\s*(?:non\s*modifi|supprim|sans\s*modif)/i.test(a)).length;
+  return marqueurs / alineas.length >= 0.34;
+}
+
 export const badgeStatutClass: Record<StatutAmendement, string> = {
   Adopté: "bg-green-100 text-green-700",
   Rejeté: "bg-red-100 text-red-700",

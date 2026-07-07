@@ -22,13 +22,13 @@ export default function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Fermer"
-          className="sticky top-3 float-right mr-3 rounded-full bg-gray-100 px-2.5 py-1 text-sm text-gray-500 hover:bg-gray-200"
+          className="sticky top-3 float-right mr-3 rounded-full bg-fond-alt px-2.5 py-1 text-sm text-gris hover:bg-gray-200"
         >
           ✕
         </button>

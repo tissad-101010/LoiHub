@@ -9,12 +9,12 @@ const ENJEUX = [
 ];
 
 const STACK = [
-  { couche: "Framework", techno: "Next.js (App Router)" },
-  { couche: "UI", techno: "Tailwind CSS" },
+  { couche: "Framework", techno: "Next.js 16 (App Router) · React 19" },
+  { couche: "UI", techno: "Tailwind CSS 4 · GSAP" },
   { couche: "ORM / DB", techno: "Prisma + PostgreSQL" },
-  { couche: "Files d'attente", techno: "BullMQ + Redis (ioredis)" },
-  { couche: "Validation", techno: "Zod" },
-  { couche: "Tests", techno: "Vitest" },
+  { couche: "Recherche", techno: "Meilisearch (lois, amendements, députés)" },
+  { couche: "Résumé en langage clair", techno: "IA générative (Mistral)" },
+  { couche: "Déploiement", techno: "Docker · AWS App Runner + ECR" },
 ];
 
 const SOURCES = [
@@ -28,8 +28,8 @@ const SOURCES = [
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6">
-      <h2 className="mb-4 text-lg font-semibold text-slate-900">{title}</h2>
+    <section className="border border-bordure bg-white p-6">
+      <h2 className="mb-4 titre text-xl text-encre">{title}</h2>
       {children}
     </section>
   );
@@ -40,29 +40,29 @@ export default function AProposPage() {
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-3xl space-y-6 p-6">
-        <div className="rounded-2xl bg-slate-900 p-8 text-white">
+        <div className="bg-bleu p-8 text-white">
           <h1 className="text-2xl font-bold">LoiHub</h1>
-          <p className="text-blue-300">Le Hub de la loi</p>
+          <p className="text-bleu-100">Le Hub de la loi</p>
           <p className="mt-4 text-sm italic text-white/70">
             Suivre une loi comme on suit un dépôt de code : commits, diffs, contributeurs.
           </p>
         </div>
 
         <Section title="Description">
-          <p className="text-sm leading-relaxed text-slate-700">
+          <p className="text-sm leading-relaxed text-encre">
             LoiHub est une plateforme qui permet aux citoyens, parlementaires et juristes de suivre en temps réel
             l&apos;évolution d&apos;une loi ou d&apos;une proposition de loi : quels articles ont changé, qui a
             proposé quoi (amendements), et pourquoi.
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-slate-700">
+          <p className="mt-3 text-sm leading-relaxed text-encre">
             La métaphore est celle de GitHub — diffs, historique, contributeurs — mais le projet{" "}
             <strong>n&apos;utilise pas git</strong>. Le backend repose sur des données relationnelles construites à
             partir des jeux de données ouverts de l&apos;Assemblée nationale et du Sénat, interrogées via SQL pour
             reconstituer les versions successives d&apos;un texte et la chaîne des amendements qui y ont mené.
           </p>
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-gris">
             Projet développé dans le cadre du Hackathon Assemblée nationale 2026 (
-            <a href="https://hackathon2026.assemblee-nationale.fr/" className="text-blue-600 hover:underline">
+            <a href="https://hackathon2026.assemblee-nationale.fr/" className="text-bleu hover:underline">
               hackathon2026.assemblee-nationale.fr
             </a>
             ).
@@ -70,14 +70,14 @@ export default function AProposPage() {
         </Section>
 
         <Section title="Enjeux">
-          <p className="mb-4 text-sm leading-relaxed text-slate-700">
+          <p className="mb-4 text-sm leading-relaxed text-encre">
             Suivre la vie d&apos;une loi aujourd&apos;hui reste un exercice réservé aux initiés. LoiHub répond à ce
             manque en traitant chaque loi comme un dépôt de code : versionné, diffable, attribuable.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-xs text-gray-500">
+                <tr className="border-b border-bordure text-xs text-gris">
                   <th className="py-2 pr-3 font-medium">Besoin</th>
                   <th className="py-2 pr-3 font-medium">Approche actuelle</th>
                   <th className="py-2 font-medium">LoiHub</th>
@@ -85,10 +85,10 @@ export default function AProposPage() {
               </thead>
               <tbody>
                 {ENJEUX.map((e) => (
-                  <tr key={e.besoin} className="border-b border-gray-100 last:border-0">
-                    <td className="py-2 pr-3 text-slate-700">{e.besoin}</td>
-                    <td className="py-2 pr-3 text-gray-500">{e.avant}</td>
-                    <td className="py-2 text-slate-700">{e.loihub}</td>
+                  <tr key={e.besoin} className="border-b border-bordure last:border-0">
+                    <td className="py-2 pr-3 text-encre">{e.besoin}</td>
+                    <td className="py-2 pr-3 text-gris">{e.avant}</td>
+                    <td className="py-2 text-encre">{e.loihub}</td>
                   </tr>
                 ))}
               </tbody>
@@ -97,7 +97,7 @@ export default function AProposPage() {
         </Section>
 
         <Section title="Fonctionnalités de la maquette">
-          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+          <ul className="list-disc space-y-2 pl-5 text-sm text-encre">
             <li><strong>En-tête</strong> — numéro, titre, statut, dates clés, lien vers le dossier législatif</li>
             <li><strong>Parcours législatif</strong> — timeline : dépôt → commission → 1ère lecture AN → Sénat → 2nde lecture → adoption → promulgation</li>
             <li><strong>Stats globales</strong> — amendements (total + adoptés), députés impliqués, scrutins publics, heures de débat</li>
@@ -106,17 +106,17 @@ export default function AProposPage() {
             <li><strong>Historique des amendements</strong> — texte initial → amendements successifs → version finale</li>
             <li><strong>« Qui a influencé cet article ? »</strong> — classement des députés par % de contribution</li>
           </ul>
-          <p className="mt-4 text-xs text-gray-500">
-            Le résumé d&apos;amendement en langage clair est généré par IA et affiché directement dans le bloc
-            « Origine de cette modification ».
+          <p className="mt-4 text-xs text-gris">
+            Un résumé en langage clair de l&apos;article, généré par IA (Mistral) à la demande, est
+            disponible via le bouton « Résumer l&apos;article » sous le texte de chaque article.
           </p>
         </Section>
 
         <Section title="Architecture technique">
-          <p className="mb-3 text-sm leading-relaxed text-slate-700">
+          <p className="mb-3 text-sm leading-relaxed text-encre">
             <strong>Front-end</strong> — codé à la main à partir de la maquette existante, avec Next.js et Tailwind.
           </p>
-          <p className="mb-4 text-sm leading-relaxed text-slate-700">
+          <p className="mb-4 text-sm leading-relaxed text-encre">
             <strong>Données</strong> — ingestion des jeux de données ouverts de l&apos;Assemblée nationale (et
             éventuellement du Sénat) dans une base PostgreSQL via Prisma, puis requêtes SQL pour reconstituer les
             versions successives d&apos;un article, la chaîne des amendements et les stats agrégées.
@@ -125,9 +125,9 @@ export default function AProposPage() {
             <table className="w-full text-left text-sm">
               <tbody>
                 {STACK.map((s) => (
-                  <tr key={s.couche} className="border-b border-gray-100 last:border-0">
-                    <td className="py-2 pr-3 text-gray-500">{s.couche}</td>
-                    <td className="py-2 text-slate-700">{s.techno}</td>
+                  <tr key={s.couche} className="border-b border-bordure last:border-0">
+                    <td className="py-2 pr-3 text-gris">{s.couche}</td>
+                    <td className="py-2 text-encre">{s.techno}</td>
                   </tr>
                 ))}
               </tbody>
@@ -136,28 +136,28 @@ export default function AProposPage() {
         </Section>
 
         <Section title="Sources de données">
-          <p className="mb-4 text-sm text-gray-500">
+          <p className="mb-4 text-sm text-gris">
             Catalogue de référence :{" "}
             <a
               href="https://hackathon2026.assemblee-nationale.fr/ressources"
-              className="text-blue-600 hover:underline"
+              className="text-bleu hover:underline"
             >
               Hackathon AN 2026 — Ressources
             </a>
           </p>
           <ul className="space-y-3 text-sm">
             {SOURCES.map((s) => (
-              <li key={s.source} className="border-b border-gray-100 pb-3 last:border-0">
-                <div className="font-medium text-slate-900">{s.categorie}</div>
-                <a href={s.url} className="text-blue-600 hover:underline">{s.source}</a>
-                <div className="text-xs text-gray-500">{s.format} · {s.perimetre}</div>
+              <li key={s.source} className="border-b border-bordure pb-3 last:border-0">
+                <div className="font-medium text-encre">{s.categorie}</div>
+                <a href={s.url} className="text-bleu hover:underline">{s.source}</a>
+                <div className="text-xs text-gris">{s.format} · {s.perimetre}</div>
               </li>
             ))}
           </ul>
         </Section>
 
         <Section title="Contributions">
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-encre">
             Projet développé dans le cadre du Hackathon Assemblée nationale 2026.
           </p>
         </Section>

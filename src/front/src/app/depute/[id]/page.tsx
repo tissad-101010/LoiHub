@@ -1,10 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
+import Fil from "@/components/Fil";
+import ActiviteDepute from "@/components/ActiviteDepute";
 import { getDepute } from "@/lib/data";
 import { badgeStatutClass } from "@/lib/ui";
 import type { DeputeProfil } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const depute = await getDepute(decodeURIComponent(id));
+  if (!depute) return { title: "Député introuvable" };
+  const grp = depute.groupeLibelle ?? depute.groupe;
+  return {
+    title: depute.nom,
+    description: `${depute.nom}${grp ? ` (${grp})` : ""} — ${depute.stats.amendements.toLocaleString("fr-FR")} amendements déposés, ${depute.stats.amendementsAdoptes} adoptés.`,
+  };
+}
 
 /* ------------------------------- Helpers ------------------------------- */
 
@@ -38,12 +56,12 @@ function Portrait({ depute }: { depute: DeputeProfil }) {
       <img
         src={depute.photoUrl}
         alt={`Portrait de ${depute.nom}`}
-        className="h-28 w-28 shrink-0 rounded-2xl object-cover ring-2 ring-white/20 sm:h-32 sm:w-32"
+        className="h-28 w-28 shrink-0 object-cover ring-2 ring-white/20 sm:h-32 sm:w-32"
       />
     );
   }
   return (
-    <span className="flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl font-semibold text-white/70 ring-2 ring-white/20 sm:h-32 sm:w-32">
+    <span className="flex h-28 w-28 shrink-0 items-center justify-center bg-white/10 text-2xl font-semibold text-white/70 ring-2 ring-white/20 sm:h-32 sm:w-32">
       {initials(depute.nom)}
     </span>
   );
@@ -51,11 +69,11 @@ function Portrait({ depute }: { depute: DeputeProfil }) {
 
 function StatCard({ valeur, label }: { valeur: string | number; label: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4">
-      <div className="text-2xl font-bold text-slate-900">
+    <div className="border border-bordure bg-white px-4 py-4">
+      <div className="text-2xl font-bold text-encre">
         {typeof valeur === "number" ? valeur.toLocaleString("fr-FR") : valeur}
       </div>
-      <div className="mt-0.5 text-xs text-gray-500">{label}</div>
+      <div className="mt-0.5 text-xs text-gris">{label}</div>
     </div>
   );
 }
@@ -64,9 +82,9 @@ function Section({ titre, count, children }: { titre: string; count?: number; ch
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">{titre}</h2>
+        <h2 className="titre text-xl text-encre">{titre}</h2>
         {count !== undefined && (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+          <span className="rounded-full bg-fond-alt px-2 py-0.5 text-xs font-medium text-gris">
             {count.toLocaleString("fr-FR")}
           </span>
         )}
@@ -78,7 +96,7 @@ function Section({ titre, count, children }: { titre: string; count?: number; ch
 
 function EmptyCard({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+    <p className="border border-dashed border-bordure bg-fond px-4 py-6 text-sm text-gris">
       {children}
     </p>
   );
@@ -95,12 +113,12 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
       <div className="min-h-screen">
         <SiteHeader />
         <main className="mx-auto max-w-3xl p-10">
-          <h1 className="text-2xl font-bold text-slate-900">Député introuvable</h1>
-          <p className="mt-4 text-slate-600">
+          <h1 className="text-2xl font-bold text-encre">Député introuvable</h1>
+          <p className="mt-4 text-gris">
             Aucun député avec l&apos;identifiant {id}. Seuls les députés de l&apos;Assemblée
             nationale (législature 17) sont référencés.
           </p>
-          <Link href="/" className="mt-6 inline-block text-blue-600 hover:underline">
+          <Link href="/" className="mt-6 inline-block text-bleu hover:underline">
             ← Retour à l&apos;accueil
           </Link>
         </main>
@@ -115,9 +133,10 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-4xl space-y-8 p-6">
+        <Fil items={[{ label: "Accueil", href: "/" }, { label: "Députés", href: "/deputes" }, { label: depute.nom }]} />
         {/* En-tête : carte sombre teintée de la couleur politique (comme LoiHeader) */}
         <div
-          className="relative overflow-hidden rounded-2xl bg-slate-900 p-6 text-white sm:p-8"
+          className="relative overflow-hidden bg-bleu p-6 text-white sm:p-8"
           style={{
             backgroundImage: `linear-gradient(135deg, ${depute.couleur}33 0%, transparent 55%)`,
           }}
@@ -146,13 +165,13 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
                 <span>Député{feminin ? "e" : ""} à l&apos;Assemblée nationale</span>
                 {depute.fonction && (
                   <>
-                    <span className="text-gray-500">·</span>
+                    <span className="text-gris">·</span>
                     <span className="font-medium text-white">{depute.fonction}</span>
                   </>
                 )}
                 {depute.circonscription && (
                   <>
-                    <span className="text-gray-500">·</span>
+                    <span className="text-gris">·</span>
                     <span>{depute.circonscription}</span>
                   </>
                 )}
@@ -160,13 +179,13 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
 
               {depute.dateDebutMandat && (
                 <div className="mt-3 flex items-center gap-1.5 text-sm text-gray-300">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-gray-400">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-gris">
                     <rect x="3" y="4" width="18" height="18" rx="2" />
                     <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
                   </svg>
                   <span>
                     Élu{feminin ? "e" : ""} depuis le {depute.dateDebutMandat}
-                    {anciennete && <span className="text-gray-400"> ({anciennete})</span>}
+                    {anciennete && <span className="text-gris"> ({anciennete})</span>}
                   </span>
                 </div>
               )}
@@ -182,6 +201,9 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
           <StatCard valeur={depute.stats.votes || "—"} label="Votes recensés" />
         </div>
 
+        {/* Activité (amendements par mois) */}
+        <ActiviteDepute activite={depute.activite} couleur={depute.couleur} />
+
         {/* Derniers amendements */}
         <Section titre="Derniers amendements" count={depute.stats.amendements}>
           {depute.derniersAmendements.length === 0 ? (
@@ -190,30 +212,30 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
             <ul className="space-y-2">
               {depute.derniersAmendements.map((a, i) => {
                 const inner = (
-                  <div className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 transition hover:border-gray-300 hover:shadow-sm">
+                  <div className="flex items-start justify-between gap-3 border border-bordure bg-white px-4 py-3 transition hover:border-gray-300 hover:shadow-sm">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">Amendement {a.numero}</span>
+                        <span className="text-sm font-medium text-encre">Amendement {a.numero}</span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeStatutClass[a.statut]}`}
                         >
                           {a.statut}
                         </span>
                       </div>
-                      <div className="mt-0.5 truncate text-xs text-gray-500">
+                      <div className="mt-0.5 truncate text-xs text-gris">
                         {a.dossierTitre ?? "Dossier inconnu"}
                       </div>
                     </div>
-                    <div className="shrink-0 text-right text-xs text-gray-400">
+                    <div className="shrink-0 text-right text-xs text-gris">
                       {a.dateDepot && <div>{a.dateDepot}</div>}
-                      {a.dossierUid && <div className="mt-0.5 text-blue-600">Voir la loi →</div>}
+                      {a.uid && <div className="mt-0.5 text-bleu">Voir l&apos;amendement →</div>}
                     </div>
                   </div>
                 );
                 return (
-                  <li key={`${a.numero}-${i}`}>
-                    {a.dossierUid ? (
-                      <Link href={`/loi/${encodeURIComponent(a.dossierUid)}`}>{inner}</Link>
+                  <li key={`${a.uid ?? a.numero}-${i}`}>
+                    {a.uid ? (
+                      <Link href={`/amendement/${encodeURIComponent(a.uid)}`}>{inner}</Link>
                     ) : (
                       inner
                     )}
@@ -235,14 +257,14 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
               {depute.textesDeposes.map((t) => (
                 <li key={t.uid}>
                   <Link href={`/loi/${encodeURIComponent(t.uid)}`}>
-                    <div className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 transition hover:border-gray-300 hover:shadow-sm">
+                    <div className="flex items-start justify-between gap-3 border border-bordure bg-white px-4 py-3 transition hover:border-gray-300 hover:shadow-sm">
                       <div className="min-w-0">
-                        <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                        <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-gris">
                           {t.type}
                         </span>
-                        <div className="mt-1 text-sm font-medium text-slate-900">{t.titre}</div>
+                        <div className="mt-1 text-sm font-medium text-encre">{t.titre}</div>
                       </div>
-                      <div className="shrink-0 text-right text-xs text-gray-400">
+                      <div className="shrink-0 text-right text-xs text-gris">
                         {t.date && <div>{t.date}</div>}
                         {t.amendements > 0 && (
                           <div className="mt-0.5">{t.amendements.toLocaleString("fr-FR")} amdt.</div>
@@ -256,25 +278,65 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
           )}
         </Section>
 
-        {/* Votes */}
-        <Section titre="Votes">
+        {/* Votes (scrutins publics) */}
+        <Section titre="Votes" count={depute.stats.votes}>
           {depute.votes.length === 0 ? (
-            <EmptyCard>
-              Les scrutins nominatifs ne sont pas encore importés dans LoiHub — les votes de ce
-              député seront affichés ici prochainement.
-            </EmptyCard>
+            <EmptyCard>Aucun vote de ce député dans les scrutins publics disponibles.</EmptyCard>
           ) : (
-            <ul className="space-y-2">
-              {depute.votes.map((v, i) => (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3"
-                >
-                  <span className="min-w-0 truncate text-sm text-slate-900">{v.objet}</span>
-                  <span className="shrink-0 text-sm font-medium text-slate-700">{v.position}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-3">
+              {depute.bilanVotes && (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(
+                    [
+                      ["Pour", depute.bilanVotes.pour, "text-green-700", "bg-green-50"],
+                      ["Contre", depute.bilanVotes.contre, "text-red-700", "bg-red-50"],
+                      ["Abstention", depute.bilanVotes.abstention, "text-encre", "bg-fond"],
+                      ["Non-votant", depute.bilanVotes.nonVotant, "text-gris", "bg-fond"],
+                    ] as const
+                  ).map(([label, n, fg, bg]) => (
+                    <div key={label} className={`${bg} px-3 py-2`}>
+                      <div className={`text-lg font-bold ${fg}`}>{n.toLocaleString("fr-FR")}</div>
+                      <div className="text-xs text-gris">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-xs text-gris">Derniers scrutins :</div>
+              <ul className="space-y-2">
+                {depute.votes.map((v, i) => {
+                  const posClass =
+                    v.position === "Pour"
+                      ? "bg-green-100 text-green-700"
+                      : v.position === "Contre"
+                        ? "bg-red-100 text-red-700"
+                        : v.position === "Abstention"
+                          ? "bg-fond-alt text-gris"
+                          : "bg-slate-100 text-gris";
+                  const inner = (
+                    <div className="flex items-center justify-between gap-3 border border-bordure bg-white px-4 py-3 transition hover:border-gray-300">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm text-encre">{v.objet}</div>
+                        <div className="mt-0.5 text-xs text-gris">
+                          {v.date}
+                          {" · "}
+                          <span className={v.adopte ? "text-green-600" : "text-red-600"}>
+                            {v.adopte ? "adopté" : "rejeté"}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${posClass}`}>
+                        {v.position}
+                      </span>
+                    </div>
+                  );
+                  return (
+                    <li key={i}>
+                      {v.loiUid ? <Link href={`/loi/${encodeURIComponent(v.loiUid)}`}>{inner}</Link> : inner}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </Section>
       </main>

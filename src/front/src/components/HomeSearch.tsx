@@ -53,7 +53,7 @@ function Icone({ kind }: { kind: Item["kind"] }) {
   const common = "h-4 w-4 shrink-0";
   if (kind === "dossier")
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`${common} text-blue-500`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`${common} text-bleu`}>
         <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" strokeLinejoin="round" />
       </svg>
     );
@@ -195,11 +195,11 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
   return (
     <div ref={rootRef} className={compact ? "relative w-full" : "relative mx-auto max-w-2xl"}>
       <div
-        className={`flex items-center gap-2 rounded-xl border border-gray-200 bg-white focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-100 ${
+        className={`flex items-center gap-2 border border-bordure bg-white focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-100 ${
           compact ? "p-1.5" : "p-2 shadow-sm"
         }`}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-2 h-4 w-4 shrink-0 text-gray-400">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-2 h-4 w-4 shrink-0 text-gris">
           <circle cx="11" cy="11" r="7" />
           <path d="M21 21l-4.3-4.3" strokeLinecap="round" />
         </svg>
@@ -214,33 +214,33 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Rechercher une loi, un amendement, un député..."
-          className="flex-1 bg-transparent px-1 py-1.5 text-sm text-slate-900 placeholder:text-gray-400 focus:outline-none"
+          className="flex-1 bg-transparent px-1 py-1.5 text-sm text-encre placeholder:text-gris focus:outline-none"
           aria-label="Recherche"
           autoComplete="off"
         />
         {loading && (
-          <svg className="h-4 w-4 shrink-0 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+          <svg className="h-4 w-4 shrink-0 animate-spin text-gris" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
             <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
         )}
-        <kbd className="mr-1 hidden shrink-0 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-400 sm:block">
+        <kbd className="mr-1 hidden shrink-0 rounded border border-bordure bg-fond px-1.5 py-0.5 text-[10px] text-gris sm:block">
           ⌘K
         </kbd>
       </div>
 
       {/* Dropdown de résultats */}
       {showDropdown && (
-        <div className="absolute z-50 mt-2 max-h-[70vh] w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 text-left shadow-xl">
+        <div className="absolute z-50 mt-2 max-h-[70vh] w-full overflow-y-auto border border-bordure bg-white p-2 text-left shadow-xl">
           {!loading && grouped.length === 0 && (
-            <div className="px-3 py-6 text-center text-sm text-gray-400">
+            <div className="px-3 py-6 text-center text-sm text-gris">
               Aucun résultat pour « {query.trim()} »
             </div>
           )}
 
           {grouped.map((g) => (
             <div key={g.kind} className="mb-1 last:mb-0">
-              <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gris">
                 {g.label}
               </div>
               {g.entries.map((item, i) => {
@@ -254,17 +254,17 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
                     onClick={() => go(item)}
                     disabled={item.href === "#"}
                     className={`flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition ${
-                      isActive ? "bg-orange-50" : "hover:bg-gray-50"
+                      isActive ? "bg-orange-50" : "hover:bg-fond"
                     } ${item.href === "#" ? "cursor-default opacity-70" : ""}`}
                   >
                     <span className="mt-0.5">
                       <Icone kind={item.kind} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-slate-900">{item.titre}</span>
-                      {item.meta && <span className="block truncate text-xs text-gray-500">{item.meta}</span>}
+                      <span className="block truncate text-sm font-medium text-encre">{item.titre}</span>
+                      {item.meta && <span className="block truncate text-xs text-gris">{item.meta}</span>}
                       {item.kind === "amendement" && item.extrait && (
-                        <span className="mt-0.5 block truncate text-xs text-gray-400">{item.extrait}</span>
+                        <span className="mt-0.5 block truncate text-xs text-gris">{item.extrait}</span>
                       )}
                     </span>
                   </button>
@@ -277,13 +277,13 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
 
       {/* Exemples populaires (sous la barre, quand pas de dropdown) */}
       {!compact && !showDropdown && (
-        <div className="mt-3 text-center text-xs text-gray-500">
+        <div className="mt-3 text-center text-xs text-gris">
           Exemples populaires :{" "}
           {EXEMPLES.map((ex, i) => (
             <span key={ex}>
               <button
                 type="button"
-                className="text-slate-900 hover:underline"
+                className="text-encre hover:underline"
                 onClick={() => goExemple(ex)}
               >
                 {ex}

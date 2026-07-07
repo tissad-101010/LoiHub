@@ -25,10 +25,15 @@ function diffLines(a: string[], b: string[]): DiffLigne[] {
   while (j < m) out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
   return out;
 }
+import { texteEstPartiel } from "@/lib/ui";
 import SiteHeader from "@/components/SiteHeader";
+import Fil from "@/components/Fil";
 import LoiHeader from "@/components/LoiHeader";
 import ParcoursHorizontal from "@/components/ParcoursHorizontal";
 import StatsCards from "@/components/StatsCards";
+import RepartitionGroupes from "@/components/RepartitionGroupes";
+import ConseilConstit from "@/components/ConseilConstit";
+import ScrutinsLoi from "@/components/ScrutinsLoi";
 import Sommaire from "@/components/Sommaire";
 import ArticleTexte from "@/components/ArticleTexte";
 import HistoriqueAmendements from "@/components/HistoriqueAmendements";
@@ -56,6 +61,8 @@ export default function LoiPageClient({
     numero: projet.numeroAffiche ?? projet.numero,
     titre: projet.titre,
     statut: projet.statut,
+    statutVariant: projet.statutVariant,
+    loiPromulguee: projet.loiPromulguee,
     dateDepot: projet.dateDepot,
     datePromulgation: projet.datePromulgation,
     version: projet.version,
@@ -111,7 +118,6 @@ export default function LoiPageClient({
   const historique = enrichi?.historique ?? [];
   const influenceurs = enrichi?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
-  const diff = amendementAffiche?.diff;
 
   // Texte de l'article TEL QU'À L'ÉTAPE sélectionnée : on prend la dernière
   // version datée <= date de l'étape, et le diff introduit vs la version d'avant.
@@ -124,13 +130,18 @@ export default function LoiPageClient({
     }
     if (idx < 0) return article; // aucune version connue à cette date
     const cur = vers[idx];
-    // On remonte jusqu'à la dernière version au contenu RÉELLEMENT différent :
-    // une transmission en navette re-« dépose » un texte identique, ce qui
-    // produisait des diffs vides et déroutants ("adopté → déposé, aucun écart").
+    // Texte de séance (marqueurs « (Non modifiée) ») : on l'affiche tel quel mais
+    // on NE le compare PAS (le diff ferait croire que tout a été supprimé).
+    if (texteEstPartiel(cur.alineas)) {
+      return { ...article, texte: cur.alineas.join("\n\n"), diffTexte: undefined, diffTexteInfo: undefined };
+    }
+    // On remonte jusqu'à la dernière version COMPLÈTE au contenu réellement
+    // différent : une navette re-« dépose » un texte identique (diff vide), et
+    // un texte de séance en marqueurs fausserait la comparaison.
     const curKey = cur.alineas.join("\n");
     let prev = null;
     for (let i = idx - 1; i >= 0; i--) {
-      if (vers[i].alineas.join("\n") !== curKey) {
+      if (!texteEstPartiel(vers[i].alineas) && vers[i].alineas.join("\n") !== curKey) {
         prev = vers[i];
         break;
       }
@@ -160,8 +171,14 @@ export default function LoiPageClient({
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-5 p-6">
+        <Fil items={[{ label: "Accueil", href: "/" }, { label: "Lois", href: "/lois" }, { label: loi.titre }]} />
         <LoiHeader loi={loi} />
         <StatsCards stats={stats} />
+        {projet.repartitionGroupes.length > 0 && (
+          <RepartitionGroupes groupes={projet.repartitionGroupes} />
+        )}
+        {projet.scrutins.length > 0 && <ScrutinsLoi scrutins={projet.scrutins} />}
+        {projet.conseilConstit && <ConseilConstit cc={projet.conseilConstit} />}
         <ParcoursHorizontal etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
 
         {(!etape || estVueSimple) && (
@@ -174,15 +191,15 @@ export default function LoiPageClient({
 
         {etape && !estVueSimple && article && (
           <>
-            <div className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-700">
+            <div className="rounded-lg bg-bleu-100 px-4 py-2 text-sm text-bleu">
               📍 Vous consultez le texte à l&apos;étape : <span className="font-medium">{etape.label}</span>
               {etape.date && <> — {etape.date}</>}
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <h2 className="mb-4 font-semibold text-slate-900">Explorer le texte de loi</h2>
-              <div className="grid grid-cols-4 gap-6">
-                <div className="col-span-1">
+            <div className="border border-bordure bg-white p-5">
+              <h2 className="mb-4 titre text-xl text-encre">Explorer le texte de loi</h2>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+                <div className="md:col-span-1">
                   <Sommaire
                     sommaire={sommaire}
                     articleActif={`Article ${articleActifNumero}`}
@@ -190,14 +207,14 @@ export default function LoiPageClient({
                     onSelect={selectArticle}
                   />
                 </div>
-                <div className="col-span-3">
-                  <ArticleTexte article={articleAffiche ?? article} amendement={amendementAffiche} diff={diff} />
+                <div className="md:col-span-3">
+                  <ArticleTexte article={articleAffiche ?? article} amendement={amendementAffiche} />
                 </div>
               </div>
             </div>
 
             {detailLoading && !enrichi ? (
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-slate-500">
+              <div className="border border-bordure bg-white p-6 text-sm text-gris">
                 Chargement de l&apos;historique des amendements…
               </div>
             ) : (

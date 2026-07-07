@@ -27,21 +27,20 @@ export default function HistoriqueAmendements({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+    <div className="border border-bordure bg-white p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-900">Historique des amendements sur cet article</h2>
+        <h2 className="titre text-xl text-encre">Historique des amendements sur cet article</h2>
         {historique.length > 0 && (
-          <button onClick={() => setVoirTous(true)} className="text-xs text-blue-600">
+          <button onClick={() => setVoirTous(true)} className="text-xs text-bleu">
             Voir tous les amendements ({historique.length}) ›
           </button>
         )}
       </div>
-      <p className="mb-3 text-xs text-gray-500">Cliquez sur un amendement pour voir sa différence de version.</p>
+      <p className="mb-3 text-xs text-gris">Cliquez sur un amendement pour voir sa différence de version.</p>
       <div className="flex gap-4 overflow-x-auto pb-2">
-        <div className="w-40 shrink-0 rounded-lg border border-gray-200 p-3 text-sm">
-          <div className="font-medium text-slate-900">Texte initial</div>
-          <div className="text-xs text-gray-500">du gouvernement</div>
-          <div className="mt-2 text-xs text-gray-400">v1.0</div>
+        <div className="w-40 shrink-0 rounded-lg border border-bordure p-3 text-sm">
+          <div className="font-medium text-encre">Texte initial</div>
+          <div className="text-xs text-gris">version déposée</div>
         </div>
         {apercu.map((a) => {
           const actif = a.numero === amendementActifNumero;
@@ -51,15 +50,15 @@ export default function HistoriqueAmendements({
               key={a.numero}
               onClick={() => onSelect(a)}
               className={`w-40 shrink-0 rounded-lg border p-3 text-left text-sm transition-colors ${
-                actif ? "border-blue-600 ring-1 ring-blue-600" : "border-gray-200 hover:border-blue-300"
+                actif ? "border-bleu ring-1 ring-bleu" : "border-bordure hover:border-bleu"
               }`}
             >
-              <div className="font-medium text-slate-900">Amendement n°{a.numero}</div>
+              <div className="font-medium text-encre">Amendement n°{a.numero}</div>
               <div className="mt-2 flex items-center gap-2">
                 <ParlementaireAvatar depute={a.auteur} size="sm" />
                 <div className="min-w-0">
-                  <div className="truncate text-xs text-gray-700">{a.auteur.nom}</div>
-                  <div className="truncate text-xs text-gray-500">
+                  <div className="truncate text-xs text-encre">{a.auteur.nom}</div>
+                  <div className="truncate text-xs text-gris">
                     {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
                   </div>
                 </div>
@@ -68,40 +67,40 @@ export default function HistoriqueAmendements({
 
                 {a.statut}
               </span>
-              <div className="mt-1 text-xs text-gray-400">{a.dateAdoption ?? a.dateDepot}</div>
+              <div className="mt-1 text-xs text-gris">{a.dateAdoption ?? a.dateDepot}</div>
               {deposeCetteEtape && (
-                <div className="mt-1 text-xs font-medium text-blue-600">Déposé lors de cette étape</div>
+                <div className="mt-1 text-xs font-medium text-bleu">Déposé lors de cette étape</div>
               )}
             </button>
           );
         })}
         <div className="w-40 shrink-0 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
           <div className="font-medium text-green-700">Version finale</div>
-          <div className="text-xs text-green-600">v3.2</div>
+          <div className="text-xs text-green-600">après amendements</div>
         </div>
       </div>
 
       <Modal open={voirTous} onClose={() => setVoirTous(false)}>
-        <h2 className="mb-4 font-semibold text-slate-900">Tous les amendements de cet article ({historique.length})</h2>
+        <h2 className="mb-4 titre text-xl text-encre">Tous les amendements de cet article ({historique.length})</h2>
         <div className="space-y-2">
           {historique.map((a) => (
             <button
               key={a.numero}
               onClick={() => selectionner(a)}
               className={`flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors ${
-                a.numero === amendementActifNumero ? "border-blue-600 ring-1 ring-blue-600" : "border-gray-200 hover:border-blue-300"
+                a.numero === amendementActifNumero ? "border-bleu ring-1 ring-bleu" : "border-bordure hover:border-bleu"
               }`}
             >
               <div className="flex min-w-0 items-center gap-3">
                 <ParlementaireAvatar depute={a.auteur} />
                 <div className="min-w-0">
-                <div className="font-medium text-slate-900">
+                <div className="font-medium text-encre">
                   Amendement n°{a.numero} — {a.auteur.nom}{" "}
-                  <span className="text-gray-400">
+                  <span className="text-gris">
                     {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gris">
                   Déposé le {a.dateDepot}
                   {a.dateAdoption && ` · Adopté le ${a.dateAdoption}`}
                 </div>

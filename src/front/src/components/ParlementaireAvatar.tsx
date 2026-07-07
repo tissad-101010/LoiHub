@@ -38,7 +38,7 @@ export default function ParlementaireAvatar({
 
   return (
     <span
-      className={`${classes} flex shrink-0 items-center justify-center rounded-full bg-gray-200 font-medium text-gray-500 ring-1 ring-gray-200`}
+      className={`${classes} flex shrink-0 items-center justify-center rounded-full bg-gray-200 font-medium text-gris ring-1 ring-gray-200`}
       title={depute.id !== "?" ? depute.id : depute.nom}
     >
       {initials(depute.nom)}

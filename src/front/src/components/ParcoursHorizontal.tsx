@@ -18,10 +18,10 @@ export default function ParcoursHorizontal({
   onSelect: (index: number) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6">
+    <div className="border border-bordure bg-white p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold text-slate-900">Parcours législatif</h2>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+        <h2 className="titre text-xl text-encre">Parcours législatif</h2>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gris">
           {LEGENDE.map((l) => (
             <span key={l.acteur} className="flex items-center gap-1.5">
               <span
@@ -31,7 +31,7 @@ export default function ParcoursHorizontal({
               {l.label}
             </span>
           ))}
-          <span className="text-gray-400">· cliquez une étape pour explorer le texte</span>
+          <span className="text-gris">· cliquez une étape pour explorer le texte</span>
         </div>
       </div>
       <div className="relative flex items-start">
@@ -53,10 +53,10 @@ export default function ParcoursHorizontal({
                   boxShadow: active ? `0 0 0 3px ${accent}33` : undefined,
                 }}
               />
-              <span className={`text-xs ${active ? "font-semibold" : "text-slate-700"}`} style={active ? { color: accent } : undefined}>
+              <span className={`text-xs ${active ? "font-semibold" : "text-encre"}`} style={active ? { color: accent } : undefined}>
                 {e.label}
               </span>
-              <span className="text-xs text-gray-400">{e.date}</span>
+              <span className="text-xs text-gris">{e.date}</span>
             </button>
           );
         })}

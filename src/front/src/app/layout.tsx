@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Sans moderne et propre (proche de SF Pro / esprit Apple) pour toute l'interface.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -13,8 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LoiHub",
-  description: "Le Hub de la loi — suivre l'évolution des lois comme un dépôt de code.",
+  title: {
+    default: "LoiHub — le GitHub de la loi",
+    template: "%s · LoiHub",
+  },
+  description:
+    "Suivez l'évolution des lois comme un dépôt de code : versions, diffs, amendements et contributeurs, à partir des données officielles de l'Assemblée nationale.",
+  applicationName: "LoiHub",
 };
 
 export default function RootLayout({
@@ -24,8 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="fr"
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

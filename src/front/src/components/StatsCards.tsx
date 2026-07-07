@@ -30,28 +30,28 @@ const icones = {
 
 export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
   const cards = [
-    { label: "Amendements", value: stats.amendements, sub: `dont ${stats.amendementsAdoptes} adoptés`, icone: icones.amendements, bg: "bg-blue-100", fg: "text-blue-600", dispo: true },
-    { label: "Députés impliqués", value: stats.deputesImpliques, sub: `sur ${stats.deputesTotal}`, icone: icones.deputes, bg: "bg-[#e6e6f1]", fg: "text-[#000175]", dispo: true },
+    { label: "Amendements", value: stats.amendements, sub: `dont ${stats.amendementsAdoptes} adoptés`, icone: icones.amendements, bg: "bg-bleu-100", fg: "text-bleu", dispo: true },
+    { label: "Députés impliqués", value: stats.deputesImpliques, sub: `sur ${stats.deputesTotal}`, icone: icones.deputes, bg: "bg-bleu-100", fg: "text-bleu", dispo: true },
     { label: "Votes enregistrés", value: stats.votes, sub: "scrutins publics", icone: icones.votes, bg: "bg-purple-100", fg: "text-purple-600", dispo: stats.votes > 0 },
     { label: "Débats", value: stats.heuresDebat, sub: "heures de débats", icone: icones.debats, bg: "bg-pink-100", fg: "text-pink-600", dispo: stats.heuresDebat > 0 },
   ];
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 divide-x divide-y divide-bordure border border-bordure bg-white sm:divide-y-0 lg:grid-cols-4">
       {cards.map((c) => (
-        <div key={c.label} className="rounded-2xl border border-gray-200 bg-white p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${c.bg} ${c.fg}`}>{c.icone}</span>
-            <span className="text-xs text-gray-500">{c.label}</span>
+        <div key={c.label} className="p-5">
+          <div className="mb-2 flex items-center gap-2 text-gris">
+            <span className="text-gris">{c.icone}</span>
+            <span className="text-xs uppercase tracking-wide">{c.label}</span>
           </div>
           {c.dispo ? (
             <>
-              <div className="text-2xl font-bold text-slate-900">{c.value.toLocaleString("fr-FR")}</div>
-              <div className="text-xs text-gray-400">{c.sub}</div>
+              <div className="ref-mono text-3xl font-bold text-bleu">{c.value.toLocaleString("fr-FR")}</div>
+              <div className="mt-0.5 text-xs text-gris">{c.sub}</div>
             </>
           ) : (
             <>
               <div className="text-lg font-medium text-gray-300">non disponible</div>
-              <div className="text-xs text-gray-300">bientôt</div>
+              <div className="mt-0.5 text-xs text-gray-300">bientôt</div>
             </>
           )}
         </div>
