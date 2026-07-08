@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="LoiHub">
+  <rect width="32" height="32" rx="6" fill="#000091"/>
+  <!-- branche (fil de versions) -->
+  <line x1="12" y1="7" x2="12" y2="25" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="12" cy="7" r="2.7" fill="#ffffff"/>
+  <circle cx="12" cy="25" r="2.7" fill="#ffffff"/>
+  <!-- amendement : bifurcation vers un nœud rouge -->
+  <path d="M12 16 C 12 20, 21 18, 21 22" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="21" cy="23" r="3.4" fill="#E1000F" stroke="#ffffff" stroke-width="1.5"/>
+</svg>
