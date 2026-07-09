@@ -84,15 +84,25 @@ function acteurFromCode(code: string): ActeurEtape {
   return "commission";
 }
 
-// statut Prisma + sort AN -> StatutAmendement du front
-function toStatut(status: string, sort: string | null): StatutAmendement {
+// statut Prisma + sort AN -> StatutAmendement du front.
+// `dossierTermine` : quand la procédure est achevée (adoption/promulgation), un
+// amendement sans sort publié n'est plus « en discussion » — il n'a jamais été
+// examiné. Sans ce contexte, on affichait à tort « En discussion » sur des lois
+// promulguées (≈32 000 amendements concernés).
+function toStatut(status: string, sort: string | null, dossierTermine = false): StatutAmendement {
   if (status === "ACCEPTED") return "Adopté";
   if (status === "REJECTED") return "Rejeté";
   const s = (sort || "").toLowerCase();
   if (s.includes("retir")) return "Retiré";
   if (s.includes("tomb")) return "Tombé";
   if (s.includes("non soutenu")) return "Non soutenu";
-  return "En discussion";
+  return dossierTermine ? "Non examiné" : "En discussion";
+}
+
+// La procédure du dossier est-elle achevée ? (même critère que le statut de la
+// page loi : une étape d'adoption ou de promulgation franchie)
+function dossierEstTermine(parcours: EtapeParcours[]): boolean {
+  return parcours.some((e) => e.fait && (e.acteur === "promulgation" || e.acteur === "adoption"));
 }
 
 // première date trouvée en profondeur dans un arbre d'actes
@@ -290,13 +300,13 @@ function dispositifFromContent(content: string | null | undefined): string | und
   return t.length > 1500 ? t.slice(0, 1500).trimEnd() + "…" : t;
 }
 
-function mapAmendement(a: AmendmentRow, deputes: DeputeMap): Amendement {
+function mapAmendement(a: AmendmentRow, deputes: DeputeMap, dossierTermine = false): Amendement {
   const auteur = deputeFromId(a.authorId, deputes);
   return {
     uid: a.uid,
     numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
     auteur,
-    statut: toStatut(a.status, a.sort),
+    statut: toStatut(a.status, a.sort, dossierTermine),
     alinea: a.alinea ?? undefined,
     dateDepot: formatDate(a.dateDepot?.toISOString()),
     dateAdoption: a.status === "ACCEPTED" ? formatDate(a.dateSort?.toISOString()) : undefined,
@@ -365,6 +375,7 @@ export const getProjetLoi = cache(async function getProjetLoi(
 
   const dp = (dossier.raw as any)?.dossierParlementaire ?? {};
   const parcours = buildParcours(dp);
+  const termine = dossierEstTermine(parcours);
 
   // amendements du dossier (via Law.dossierId)
   const amendements = await prisma.amendment.findMany({
@@ -494,7 +505,7 @@ export const getProjetLoi = cache(async function getProjetLoi(
         texte:
           texteArticle(numero) ??
           "Le texte de cet article n'est pas encore disponible. Vous pouvez consulter ci-dessous les amendements qui le concernent.",
-        amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes) : undefined,
+        amendementActuel: dernierAdopte ? mapAmendement(dernierAdopte, deputes, termine) : undefined,
         // historique + influenceurs + versionsTexte NE sont PAS dans le payload
         // initial : ils ne servent que pour l'article actif (après sélection
         // d'une étape) et pesaient l'essentiel des ~3 Mo (dont ~1,6 Mo de texte
@@ -562,14 +573,21 @@ export const getProjetLoi = cache(async function getProjetLoi(
   }));
 
   // Scrutins publics rattachés à ce dossier (dataset AN "Scrutins").
-  const scrutinsRows = await prisma.scrutin.findMany({
-    where: { dossierUid },
-    orderBy: { dateScrutin: "asc" },
-    select: {
-      uid: true, numero: true, dateScrutin: true, titre: true,
-      sortCode: true, sortLibelle: true, pour: true, contre: true, abstention: true,
-    },
-  });
+  // Borné aux plus récents pour le poids de page (un PLF compte ~900 scrutins) ;
+  // le total réel est exposé séparément et affiché tel quel.
+  const MAX_SCRUTINS = 80;
+  const scrutinsTotal = await prisma.scrutin.count({ where: { dossierUid } });
+  const scrutinsRows = (
+    await prisma.scrutin.findMany({
+      where: { dossierUid },
+      orderBy: { dateScrutin: "desc" },
+      take: MAX_SCRUTINS,
+      select: {
+        uid: true, numero: true, dateScrutin: true, titre: true,
+        sortCode: true, sortLibelle: true, pour: true, contre: true, abstention: true,
+      },
+    })
+  ).reverse(); // ré-affichés du plus ancien au plus récent
   const scrutins = scrutinsRows.map((s) => ({
     uid: s.uid,
     numero: s.numero ?? undefined,
@@ -638,11 +656,12 @@ export const getProjetLoi = cache(async function getProjetLoi(
       amendementsAdoptes: adoptes,
       deputesImpliques: auteurs.size,
       deputesTotal: 577,
-      votes: scrutins.length,
+      votes: scrutinsTotal,
       heuresDebat: 0, // dataset débats non importé
     },
     repartitionGroupes,
     scrutins,
+    scrutinsTotal,
     articles,
   };
 });
@@ -831,8 +850,30 @@ export const getDepute = cache(async function getDepute(
       { name: nomComplet, group, photoUrl: photoParlementaireUrl(uid), institution: "assemblee" as const },
     ],
   ]);
+  // Procédure achevée par dossier : même logique de statut que la page loi
+  // (un amendement sans sort sur un texte terminé est « Non examiné »).
+  const dossierUids = [
+    ...new Set(amendementsRows.map((a) => a.law?.dossier?.uid).filter(Boolean)),
+  ] as string[];
+  const rawDossiers = dossierUids.length
+    ? await prisma.dossier.findMany({
+        where: { uid: { in: dossierUids } },
+        select: { uid: true, raw: true },
+      })
+    : [];
+  const termineParDossier = new Map(
+    rawDossiers.map((d) => [
+      d.uid as string,
+      dossierEstTermine(buildParcours((d.raw as any)?.dossierParlementaire ?? {})),
+    ])
+  );
+
   const derniersAmendements = amendementsRows.map((a) => ({
-    ...mapAmendement(a as AmendmentRow, selfDepute),
+    ...mapAmendement(
+      a as AmendmentRow,
+      selfDepute,
+      termineParDossier.get(a.law?.dossier?.uid ?? "") ?? false
+    ),
     dossierUid: a.law?.dossier?.uid ?? undefined,
     dossierTitre: a.law?.dossier?.title ?? undefined,
   }));
@@ -932,9 +973,13 @@ export async function getArticleDetail(
 } | null> {
   const dossier = await prisma.dossier.findUnique({
     where: { uid: dossierUid },
-    select: { id: true },
+    select: { id: true, raw: true },
   });
   if (!dossier) return null;
+  // procédure achevée ? -> les amendements sans sort deviennent « Non examiné »
+  const termine = dossierEstTermine(
+    buildParcours((dossier.raw as any)?.dossierParlementaire ?? {})
+  );
 
   // versions datées du texte de CET article (pour lier le texte au parcours) —
   // sorties du payload initial (le JSON LawText pèse ~1,6 Mo par dossier).
@@ -1023,7 +1068,7 @@ export async function getArticleDetail(
       )
     : new Map<string, string | null>();
   const historique = histoRows.map((r) =>
-    mapAmendement({ ...r, content: r.uid ? contentByUid.get(r.uid) : null }, deputes)
+    mapAmendement({ ...r, content: r.uid ? contentByUid.get(r.uid) : null }, deputes, termine)
   );
 
   // influenceurs = part des auteurs parmi les amendements adoptés
@@ -1101,7 +1146,7 @@ export const getAmendement = cache(async function getAmendement(
       dateDepot: true,
       dateSort: true,
       authorId: true,
-      law: { select: { dossier: { select: { uid: true, title: true } } } },
+      law: { select: { dossier: { select: { uid: true, title: true, raw: true } } } },
     },
   });
   if (!a) return null;
@@ -1143,11 +1188,15 @@ export const getAmendement = cache(async function getAmendement(
   }
   const cosignataires = cosignIds.map((id) => deputeFromId(id, deputes));
 
+  const termine = dossierEstTermine(
+    buildParcours((a.law?.dossier?.raw as any)?.dossierParlementaire ?? {})
+  );
+
   return {
     uid: a.uid,
     numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
     auteur: deputeFromId(a.authorId, deputes),
-    statut: toStatut(a.status, a.sort),
+    statut: toStatut(a.status, a.sort, termine),
     sort: a.sort ?? undefined,
     article: a.article ?? undefined,
     alinea: a.alinea ?? undefined,

@@ -16,21 +16,26 @@ function BarreVote({ s }: { s: Scrutin }) {
   );
 }
 
-export default function ScrutinsLoi({ scrutins }: { scrutins: Scrutin[] }) {
+export default function ScrutinsLoi({ scrutins, total }: { scrutins: Scrutin[]; total?: number }) {
   const [tout, setTout] = useState(false);
   if (!scrutins.length) return null;
   const visibles = tout ? scrutins : scrutins.slice(0, APERCU);
+  const totalReel = total ?? scrutins.length;
+  const tronque = totalReel > scrutins.length; // seuls les plus récents sont chargés
 
   return (
     <div className="border border-bordure bg-white p-5">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="titre text-xl text-encre">Scrutins publics</h2>
-        <span className="text-xs text-gris">{scrutins.length}</span>
+        <span className="text-xs text-gris">{totalReel.toLocaleString("fr-FR")}</span>
       </div>
       <p className="mb-4 text-xs text-gris">
         Votes solennels et scrutins publics rattachés à ce texte —{" "}
         <span className="text-green-600">pour</span> · <span className="text-red-600">contre</span> ·{" "}
         <span className="text-gris">abstention</span>.
+        {tronque && (
+          <> Affichage des {scrutins.length} plus récents (sur {totalReel.toLocaleString("fr-FR")}).</>
+        )}
       </p>
 
       <ul className="space-y-3">
@@ -65,7 +70,7 @@ export default function ScrutinsLoi({ scrutins }: { scrutins: Scrutin[] }) {
 
       {scrutins.length > APERCU && (
         <button onClick={() => setTout((v) => !v)} className="mt-3 text-xs text-bleu">
-          {tout ? "Voir moins" : `Voir les ${scrutins.length} scrutins`}
+          {tout ? "Voir moins" : tronque ? `Voir les ${scrutins.length} scrutins les plus récents` : `Voir les ${scrutins.length} scrutins`}
         </button>
       )}
     </div>

@@ -181,7 +181,9 @@ export default function LoiPageClient({
         {projet.repartitionGroupes.length > 0 && (
           <RepartitionGroupes groupes={projet.repartitionGroupes} />
         )}
-        {projet.scrutins.length > 0 && <ScrutinsLoi scrutins={projet.scrutins} />}
+        {projet.scrutins.length > 0 && (
+          <ScrutinsLoi scrutins={projet.scrutins} total={projet.scrutinsTotal} />
+        )}
         {projet.conseilConstit && <ConseilConstit cc={projet.conseilConstit} />}
         <ParcoursHorizontal etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
 

@@ -28,6 +28,7 @@ export const badgeStatutClass: Record<StatutAmendement, string> = {
   Tombé: "bg-amber-100 text-amber-700",
   "Non soutenu": "bg-slate-100 text-slate-600",
   "En discussion": "bg-blue-100 text-blue-700",
+  "Non examiné": "bg-slate-100 text-slate-500",
 };
 
 // Explication en langage clair de chaque statut (bulle d'aide)
@@ -38,6 +39,7 @@ export const statutExplication: Record<StatutAmendement, string> = {
   Tombé: "Amendement devenu sans objet (souvent parce qu'un autre amendement adopté l'a rendu caduc).",
   "Non soutenu": "Amendement non défendu en séance (auteur absent), donc non examiné.",
   "En discussion": "Amendement déposé, en cours d'examen — pas encore tranché.",
+  "Non examiné": "Amendement déposé mais jamais examiné : la procédure s'est achevée sans qu'il soit appelé.",
 };
 
 export const dotStatutClass: Record<StatutAmendement, string> = {
@@ -47,6 +49,7 @@ export const dotStatutClass: Record<StatutAmendement, string> = {
   Tombé: "bg-amber-500",
   "Non soutenu": "bg-slate-400",
   "En discussion": "bg-blue-500",
+  "Non examiné": "bg-slate-300",
 };
 
 // Même logique de couleur que le parcours législatif (page loi) : vert = dépôt/

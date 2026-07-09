@@ -22,7 +22,8 @@ export default async function DeputesPage() {
           <span className="tricolore-accent mb-3" />
           <h1 className="titre text-3xl text-encre">Députés</h1>
           <p className="text-sm text-gris">
-            Les {deputes.length} députés de la XVIIe législature, classés par nombre d&apos;amendements déposés.
+            {/* chaîne unique : le compilateur JSX avale l'espace après l'expression */}
+            {`Les ${deputes.length} députés de la XVIIe législature, classés par nombre d'amendements déposés.`}
           </p>
         </div>
         <DeputesAnnuaire deputes={deputes} />

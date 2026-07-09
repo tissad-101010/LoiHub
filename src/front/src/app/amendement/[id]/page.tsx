@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import Fil from "@/components/Fil";
@@ -38,19 +39,8 @@ export default async function AmendementPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const a = await getAmendement(decodeURIComponent(id));
 
-  if (!a) {
-    return (
-      <div className="min-h-screen">
-        <SiteHeader />
-        <main className="mx-auto max-w-3xl p-10">
-          <h1 className="text-2xl font-bold text-encre">Amendement introuvable</h1>
-          <Link href="/" className="mt-6 inline-block text-bleu hover:underline">
-            ← Retour à l&apos;accueil
-          </Link>
-        </main>
-      </div>
-    );
-  }
+  // vrai 404 (voir not-found.tsx) au lieu d'une page d'erreur servie en 200
+  if (!a) notFound();
 
   const lienFiche = /^PA\d+$/.test(a.auteur.id);
 

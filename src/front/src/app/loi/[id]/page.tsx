@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import LoiPageClient from "@/components/LoiPageClient";
 import { getProjetLoi, buildSommaire } from "@/lib/data";
 
@@ -12,7 +12,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const projet = await getProjetLoi(decodeURIComponent(id));
-  if (!projet) return { title: "Dossier introuvable" };
+  // notFound() dès les métadonnées : avec un loading.tsx, le shell (statut 200)
+  // partirait avant le notFound() du corps de page — ici le 404 est garanti.
+  if (!projet) notFound();
   return {
     title: projet.titre,
     description: `${projet.titre} — ${projet.statut}. ${projet.stats.amendements.toLocaleString("fr-FR")} amendements, ${projet.stats.deputesImpliques} députés impliqués.`,
@@ -23,17 +25,8 @@ export default async function LoiPage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const projet = await getProjetLoi(decodeURIComponent(id));
 
-  if (!projet) {
-    return (
-      <main className="mx-auto max-w-3xl p-10">
-        <h1 className="text-2xl font-bold text-encre">Dossier introuvable</h1>
-        <p className="mt-4 text-gris">Aucun dossier avec l&apos;identifiant {id}.</p>
-        <Link href="/" className="mt-6 inline-block text-bleu">
-          ← Retour à l&apos;accueil
-        </Link>
-      </main>
-    );
-  }
+  // vrai 404 (voir not-found.tsx) au lieu d'une page d'erreur servie en 200
+  if (!projet) notFound();
 
   const sommaire = buildSommaire(projet.articles);
   return <LoiPageClient projet={projet} sommaire={sommaire} />;

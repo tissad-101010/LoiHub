@@ -4,7 +4,8 @@ export type StatutAmendement =
   | "Retiré"
   | "Tombé"
   | "Non soutenu"
-  | "En discussion";
+  | "En discussion"
+  | "Non examiné";
 
 export interface Depute {
   id: string;
@@ -82,7 +83,9 @@ export interface ProjetLoi {
   // Saisines du Conseil constitutionnel (si le texte a été déféré).
   conseilConstit?: { saisines: { date: string; par: string }[] };
   // Scrutins publics rattachés à ce dossier (votes solennels, sur articles…).
+  // `scrutins` est borné pour le poids de page ; `scrutinsTotal` = nb réel.
   scrutins: Scrutin[];
+  scrutinsTotal: number;
   version: string;
   parcours: EtapeParcours[];
   stats: {
