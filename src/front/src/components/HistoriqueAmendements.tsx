@@ -21,7 +21,16 @@ export default function HistoriqueAmendements({
   onSelect: (amendement: Amendement) => void;
 }) {
   const [voirTous, setVoirTous] = useState(false);
-  const apercu = historique.slice(0, APERCU_MAX);
+  // Aperçu : les amendements ADOPTÉS d'abord (ce sont les « commits » qui ont
+  // réellement modifié le texte), complétés par les autres — ordre chronologique
+  // préservé. Sans cela, un article très amendé n'affichait souvent que des rejets.
+  const apercu = (() => {
+    const adoptes = historique.filter((a) => a.statut === "Adopté").slice(0, APERCU_MAX - 2);
+    const pris = new Set(adoptes.map((a) => a.numero));
+    const complement = historique.filter((a) => !pris.has(a.numero)).slice(0, APERCU_MAX - adoptes.length);
+    const ordre = new Map(historique.map((a, i) => [a.numero, i]));
+    return [...adoptes, ...complement].sort((x, y) => (ordre.get(x.numero) ?? 0) - (ordre.get(y.numero) ?? 0));
+  })();
   const totalReel = total ?? historique.length;
   const tronque = totalReel > historique.length; // seuls les plus récents sont chargés
 
@@ -40,70 +49,117 @@ export default function HistoriqueAmendements({
           </button>
         )}
       </div>
-      <p className="mb-3 text-xs text-gris">
-        Du texte déposé à la version finale : chaque carte est un amendement, dans l&apos;ordre
-        chronologique. Cliquez-en un pour voir sa différence de version.
+      <p className="mb-1 text-xs text-gris">
+        Comme un historique git : le <span className="font-medium text-bleu">fil bleu</span> est
+        le texte de la loi. Un amendement <span className="font-medium text-green-700">adopté</span>
+        {" "}rejoint le fil (il modifie le texte) ; un amendement{" "}
+        <span className="font-medium text-red-600">écarté</span>
+        {" "}reste en dérivation. Cliquez une carte pour voir ce qu&apos;elle change.
       </p>
-      {/* frise connectée : un fil relie le texte initial aux amendements puis à la
-          version finale — les cartes « flottent » au-dessus du fil */}
-      <div className="relative overflow-x-auto pb-2">
-        <div className="absolute left-0 right-0 top-1/2 hidden h-0.5 bg-bordure sm:block" aria-hidden />
-        <div className="relative flex items-stretch gap-0">
-          <div className="z-10 flex w-40 shrink-0 flex-col justify-center rounded-lg border border-dashed border-bordure bg-fond p-3 text-sm">
-            <div className="font-medium text-encre">Texte initial</div>
-            <div className="text-xs text-gris">version déposée</div>
-          </div>
-          {apercu.map((a) => {
-            const actif = a.numero === amendementActifNumero;
-            const deposeCetteEtape = a.dateDepot === etapeDate;
-            const pointCouleur =
-              a.statut === "Adopté" ? "bg-green-500" : a.statut === "Rejeté" ? "bg-red-400" : "bg-gray-300";
-            return (
-              <div key={a.numero} className="flex shrink-0 items-center">
-                {/* connecteur : point coloré selon le sort de l'amendement */}
-                <span className="z-10 mx-2 hidden items-center sm:flex" aria-hidden>
-                  <span className={`h-2 w-2 rounded-full ${pointCouleur} ring-2 ring-white`} />
-                </span>
-                <button
-                  onClick={() => onSelect(a)}
-                  className={`z-10 w-40 shrink-0 rounded-lg border bg-white p-3 text-left text-sm shadow-sm transition ${
-                    actif
-                      ? "border-bleu ring-1 ring-bleu"
-                      : "border-bordure hover:-translate-y-0.5 hover:border-bleu hover:shadow-md"
-                  }`}
-                >
-                  <div className="font-medium text-encre">Amendement n°{a.numero}</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <ParlementaireAvatar depute={a.auteur} size="sm" />
-                    <div className="min-w-0">
-                      <div className="truncate text-xs text-encre">{a.auteur.nom}</div>
-                      <div className="truncate text-xs text-gris">
-                        {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+
+      {(() => {
+        // ---- graphe façon commits : géométrie alignée sur les cartes ----
+        const CARTE = 160; // w-40
+        const GAP = 16; // gap-4
+        const PAS = CARTE + GAP;
+        const items = apercu.length + 2; // texte initial + amendements + version finale
+        const largeur = items * PAS - GAP;
+        const centre = (i: number) => i * PAS + CARTE / 2;
+        const Y_FIL = 14; // le « main » : fil du texte
+        const Y_BRANCHE = 40; // branches des amendements non retenus
+        const H = 52;
+        const adopte = (s: string) => s === "Adopté";
+
+        return (
+          <div className="overflow-x-auto pb-2">
+            <div style={{ width: largeur }} className="min-w-full">
+              {/* le graphe */}
+              <svg width={largeur} height={H} className="block" aria-hidden>
+                {/* fil principal du texte */}
+                <line x1={centre(0)} y1={Y_FIL} x2={centre(items - 1)} y2={Y_FIL} stroke="var(--color-bleu)" strokeWidth="2.5" />
+                {apercu.map((a, i) => {
+                  const cx = centre(i + 1);
+                  if (adopte(a.statut)) {
+                    // commit sur le fil : l'amendement modifie le texte
+                    return (
+                      <g key={a.numero}>
+                        <circle cx={cx} cy={Y_FIL} r="7.5" fill="#22c55e" stroke="#fff" strokeWidth="2" />
+                        <path d={`M ${cx - 3.5} ${Y_FIL} l 2.5 2.5 l 4.5 -5`} stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </g>
+                    );
+                  }
+                  // branche qui dérive du fil et s'arrête : proposé mais non retenu
+                  const rejete = a.statut === "Rejeté";
+                  const c = rejete ? "#ef4444" : "#9ca3af";
+                  return (
+                    <g key={a.numero}>
+                      <path
+                        d={`M ${cx - PAS / 2} ${Y_FIL} C ${cx - PAS / 5} ${Y_FIL}, ${cx - PAS / 4} ${Y_BRANCHE}, ${cx} ${Y_BRANCHE}`}
+                        stroke={c}
+                        strokeWidth="2"
+                        fill="none"
+                        strokeDasharray={rejete ? undefined : "4 3"}
+                      />
+                      <circle cx={cx} cy={Y_BRANCHE} r="6.5" fill="#fff" stroke={c} strokeWidth="2" />
+                      {/* croix : la branche s'arrête là */}
+                      <path d={`M ${cx - 2.5} ${Y_BRANCHE - 2.5} l 5 5 M ${cx + 2.5} ${Y_BRANCHE - 2.5} l -5 5`} stroke={c} strokeWidth="1.8" strokeLinecap="round" />
+                    </g>
+                  );
+                })}
+                {/* nœuds de départ et d'arrivée du fil */}
+                <circle cx={centre(0)} cy={Y_FIL} r="7" fill="#fff" stroke="var(--color-bleu)" strokeWidth="2.5" />
+                <circle cx={centre(items - 1)} cy={Y_FIL} r="7.5" fill="var(--color-bleu)" stroke="#fff" strokeWidth="2" />
+                <path d={`M ${centre(items - 1) - 3} ${Y_FIL} h 6`} stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+
+              {/* les cartes, alignées sous leur nœud */}
+              <div className="flex gap-4">
+                <div className="flex w-40 shrink-0 flex-col rounded-lg border border-dashed border-bordure bg-fond p-3 text-sm">
+                  <div className="font-medium text-encre">Texte initial</div>
+                  <div className="text-xs text-gris">version déposée</div>
+                </div>
+                {apercu.map((a) => {
+                  const actif = a.numero === amendementActifNumero;
+                  const deposeCetteEtape = a.dateDepot === etapeDate;
+                  return (
+                    <button
+                      key={a.numero}
+                      onClick={() => onSelect(a)}
+                      className={`w-40 shrink-0 rounded-lg border bg-white p-3 text-left text-sm shadow-sm transition ${
+                        actif
+                          ? "border-bleu ring-1 ring-bleu"
+                          : "border-bordure hover:-translate-y-0.5 hover:border-bleu hover:shadow-md"
+                      }`}
+                    >
+                      <div className="font-medium text-encre">Amendement n°{a.numero}</div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <ParlementaireAvatar depute={a.auteur} size="sm" />
+                        <div className="min-w-0">
+                          <div className="truncate text-xs text-encre">{a.auteur.nom}</div>
+                          <div className="truncate text-xs text-gris">
+                            {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <span title={statutExplication[a.statut]} className={`mt-2 inline-block cursor-help rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
-                    {a.statut}
-                  </span>
-                  <div className="mt-1 text-xs text-gris">{a.dateAdoption ?? a.dateDepot}</div>
-                  {deposeCetteEtape && (
-                    <div className="mt-1 text-xs font-medium text-bleu">Déposé lors de cette étape</div>
-                  )}
-                </button>
+                      <span title={statutExplication[a.statut]} className={`mt-2 inline-block cursor-help rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
+                        {a.statut}
+                      </span>
+                      <div className="mt-1 text-xs text-gris">{a.dateAdoption ?? a.dateDepot}</div>
+                      {deposeCetteEtape && (
+                        <div className="mt-1 text-xs font-medium text-bleu">Déposé lors de cette étape</div>
+                      )}
+                    </button>
+                  );
+                })}
+                <div className="flex w-40 shrink-0 flex-col rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+                  <div className="font-medium text-green-700">Version finale</div>
+                  <div className="text-xs text-green-600">après amendements</div>
+                </div>
               </div>
-            );
-          })}
-          <span className="z-10 mx-2 hidden items-center sm:flex" aria-hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-4 w-4 text-gris">
-              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <div className="z-10 flex w-40 shrink-0 flex-col justify-center rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-            <div className="font-medium text-green-700">Version finale</div>
-            <div className="text-xs text-green-600">après amendements</div>
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       <Modal open={voirTous} onClose={() => setVoirTous(false)}>
         <h2 className="mb-1 titre text-xl text-encre">Amendements de cet article ({totalReel.toLocaleString("fr-FR")})</h2>
