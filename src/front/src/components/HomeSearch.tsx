@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { SearchResponse } from "@/app/api/search/route";
 
-const EXEMPLES = ["Loi immigration", "Réforme des retraites", "Loi climat"];
+const EXEMPLES = ["Immigration", "Retraites", "Climat"];
 
 // Un « résultat plat » : on aplatit les 3 catégories en une seule liste pour la
 // navigation clavier (flèches haut/bas), tout en gardant l'affichage groupé.

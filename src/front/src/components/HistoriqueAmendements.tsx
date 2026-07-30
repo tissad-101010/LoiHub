@@ -9,17 +9,21 @@ const APERCU_MAX = 6;
 
 export default function HistoriqueAmendements({
   historique,
+  total,
   amendementActifNumero,
   etapeDate,
   onSelect,
 }: {
   historique: Amendement[];
+  total?: number; // nb réel d'amendements sur l'article (historique peut être plafonné)
   amendementActifNumero?: string;
   etapeDate?: string;
   onSelect: (amendement: Amendement) => void;
 }) {
   const [voirTous, setVoirTous] = useState(false);
   const apercu = historique.slice(0, APERCU_MAX);
+  const totalReel = total ?? historique.length;
+  const tronque = totalReel > historique.length; // seuls les plus récents sont chargés
 
   function selectionner(a: Amendement) {
     onSelect(a);
@@ -32,7 +36,7 @@ export default function HistoriqueAmendements({
         <h2 className="titre text-xl text-encre">Historique des amendements sur cet article</h2>
         {historique.length > 0 && (
           <button onClick={() => setVoirTous(true)} className="text-xs text-bleu">
-            Voir tous les amendements ({historique.length}) ›
+            Voir tous les amendements ({totalReel.toLocaleString("fr-FR")}) ›
           </button>
         )}
       </div>
@@ -81,7 +85,13 @@ export default function HistoriqueAmendements({
       </div>
 
       <Modal open={voirTous} onClose={() => setVoirTous(false)}>
-        <h2 className="mb-4 titre text-xl text-encre">Tous les amendements de cet article ({historique.length})</h2>
+        <h2 className="mb-1 titre text-xl text-encre">Amendements de cet article ({totalReel.toLocaleString("fr-FR")})</h2>
+        {tronque && (
+          <p className="mb-4 text-xs text-gris">
+            Affichage des {historique.length.toLocaleString("fr-FR")} amendements les plus récents (sur{" "}
+            {totalReel.toLocaleString("fr-FR")}).
+          </p>
+        )}
         <div className="space-y-2">
           {historique.map((a) => (
             <button

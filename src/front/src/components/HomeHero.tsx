@@ -1,7 +1,7 @@
 import Link from "next/link";
 import HomeSearch from "@/components/HomeSearch";
 import type { LoiResume } from "@/lib/types";
-import { COULEUR_ACTEUR } from "@/lib/ui";
+import { COULEUR_ACTEUR, libelleRef } from "@/lib/ui";
 
 export interface StatsGlobales {
   dossiers: number;
@@ -18,7 +18,9 @@ export default function HomeHero({ featured, stats }: { featured?: LoiResume; st
     { valeur: stats.scrutins, label: "scrutins publics" },
   ];
   const c = featured ? COULEUR_ACTEUR[featured.etape.acteur] : null;
-  const refFeatured = featured?.numero.match(/N(\d+)/)?.[1] ?? featured?.numero;
+  const refFeatured = featured
+    ? libelleRef(featured.type, featured.numeroAffiche ?? featured.numero.match(/N(\d+)/)?.[1] ?? featured.numero, featured.chambre)
+    : "";
 
   return (
     <section>
@@ -26,16 +28,15 @@ export default function HomeHero({ featured, stats }: { featured?: LoiResume; st
         {/* Colonne éditoriale */}
         <div className="apparait lg:col-span-7">
           <div className="ref-mono text-xs uppercase tracking-widest text-bleu">
-            Données ouvertes · Assemblée nationale
+            Données ouvertes · Assemblée Nationale
           </div>
-          <h1 className="titre mt-4 text-5xl leading-[1.05] text-encre sm:text-6xl">
+          <h1 className="titre mt-4 text-[2rem] leading-[1.1] text-encre sm:text-5xl sm:leading-[1.05] lg:text-6xl">
             Suivre la loi comme
-            <br />
-            on suit un dépôt de code.
+            <br className="hidden sm:block" /> on suit un dépôt de code.
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-gris">
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-gris sm:text-lg">
             Versions, différences ligne à ligne, amendements, exposés des motifs, cosignataires et votes nominatifs —
-            reconstitués à partir des données officielles de l&apos;Assemblée nationale.
+            reconstitués à partir des données officielles de l&apos;Assemblée Nationale.
           </p>
 
           <div className="mt-8 max-w-2xl">
@@ -55,7 +56,7 @@ export default function HomeHero({ featured, stats }: { featured?: LoiResume; st
                 La plus amendée en ce moment
               </div>
               <h2 className="titre mt-3 text-2xl leading-snug text-encre">{featured.titre}</h2>
-              <div className="ref-mono mt-1 text-xs text-gris">Dossier n° {refFeatured}</div>
+              <div className="ref-mono mt-1 text-xs text-gris">{refFeatured}</div>
 
               <span
                 className="mt-4 inline-flex w-fit items-center gap-1.5 px-2 py-1 text-xs font-medium"

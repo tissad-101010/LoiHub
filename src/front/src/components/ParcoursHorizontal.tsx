@@ -40,7 +40,9 @@ export default function ParcoursHorizontal({
         l&apos;Assemblée nationale et le Sénat forment la{" "}
         <Terme mot="navette">navette parlementaire</Terme>.
       </p>
-      <div className="relative flex items-start">
+      {/* défilement horizontal sur mobile : les étapes gardent une largeur lisible */}
+      <div className="-mx-2 overflow-x-auto px-2 pb-1">
+      <div className="relative flex min-w-[520px] items-start">
         <div className="absolute left-0 right-0 top-3 h-0.5 bg-gray-200" />
         {etapes.map((e, i) => {
           const active = etapeActive === i;
@@ -49,7 +51,7 @@ export default function ParcoursHorizontal({
             <button
               key={i}
               onClick={() => onSelect(active ? -1 : i)}
-              className="group relative z-10 flex flex-1 flex-col items-center gap-2 text-center"
+              className="group relative z-10 flex min-w-[64px] flex-1 flex-col items-center gap-2 px-1 text-center"
             >
               <span
                 className="h-6 w-6 rounded-full transition-transform group-hover:scale-110"
@@ -66,6 +68,7 @@ export default function ParcoursHorizontal({
             </button>
           );
         })}
+      </div>
       </div>
     </div>
   );

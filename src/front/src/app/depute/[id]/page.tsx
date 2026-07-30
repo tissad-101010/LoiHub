@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import Fil from "@/components/Fil";
@@ -108,23 +109,8 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const depute = await getDepute(decodeURIComponent(id));
 
-  if (!depute) {
-    return (
-      <div className="min-h-screen">
-        <SiteHeader />
-        <main className="mx-auto max-w-3xl p-10">
-          <h1 className="text-2xl font-bold text-encre">Député introuvable</h1>
-          <p className="mt-4 text-gris">
-            Aucun député avec l&apos;identifiant {id}. Seuls les députés de l&apos;Assemblée
-            nationale (législature 17) sont référencés.
-          </p>
-          <Link href="/" className="mt-6 inline-block text-bleu hover:underline">
-            ← Retour à l&apos;accueil
-          </Link>
-        </main>
-      </div>
-    );
-  }
+  // vrai 404 (voir not-found.tsx) au lieu d'une page d'erreur servie en 200
+  if (!depute) notFound();
 
   const feminin = depute.civilite === "Mme";
   const anciennete = ancienneteLabel(depute.dateDebutMandatIso);

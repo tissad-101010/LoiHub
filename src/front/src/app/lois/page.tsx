@@ -38,7 +38,8 @@ export default async function LoisPage({
           <span className="tricolore-accent mb-3" />
           <h1 className="titre text-3xl text-encre">Registre législatif</h1>
           <p className="mt-1 text-sm text-gris">
-            {total.toLocaleString("fr-FR")} dossiers de la XVIIe législature, classés par volume d&apos;amendements.
+            {/* chaîne unique : le compilateur JSX avale l'espace après l'expression */}
+            {`${total.toLocaleString("fr-FR")} dossiers de la XVIIe législature, classés par volume d'amendements.`}
           </p>
         </div>
 

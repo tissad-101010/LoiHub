@@ -45,7 +45,7 @@ export default function DeputesAnnuaire({ deputes }: { deputes: DeputeListItem[]
             aria-label="Rechercher un député"
           />
         </div>
-        <div className="text-sm text-gris">{filtres.length.toLocaleString("fr-FR")} députés</div>
+        <div className="text-sm text-gris">{`${filtres.length.toLocaleString("fr-FR")} députés`}</div>
       </div>
 
       <div className="flex flex-wrap gap-2">
