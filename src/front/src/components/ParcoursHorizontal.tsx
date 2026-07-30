@@ -43,7 +43,20 @@ export default function ParcoursHorizontal({
       {/* défilement horizontal sur mobile : les étapes gardent une largeur lisible */}
       <div className="-mx-2 overflow-x-auto px-2 pb-1">
       <div className="relative flex min-w-[520px] items-start">
+        {/* rail gris + progression bleue jusqu'à la dernière étape franchie */}
         <div className="absolute left-0 right-0 top-3 h-0.5 bg-gray-200" />
+        {(() => {
+          const dernierFait = etapes.reduce((acc, e, i) => (e.fait ? i : acc), -1);
+          if (dernierFait <= 0 || etapes.length < 2) return null;
+          // la ligne relie les CENTRES des étapes : demi-pas de marge de chaque côté
+          const pas = 100 / etapes.length;
+          return (
+            <div
+              className="absolute top-3 h-0.5 bg-bleu transition-all"
+              style={{ left: `${pas / 2}%`, width: `${pas * dernierFait}%` }}
+            />
+          );
+        })()}
         {etapes.map((e, i) => {
           const active = etapeActive === i;
           const { clair, accent } = COULEUR_ACTEUR[e.acteur];
@@ -54,17 +67,33 @@ export default function ParcoursHorizontal({
               className="group relative z-10 flex min-w-[64px] flex-1 flex-col items-center gap-2 px-1 text-center"
             >
               <span
-                className="h-6 w-6 rounded-full transition-transform group-hover:scale-110"
+                className="flex h-6 w-6 items-center justify-center rounded-full transition-transform group-hover:scale-110"
                 style={{
-                  backgroundColor: e.fait ? clair : "#fff",
+                  backgroundColor: e.fait ? accent : "#fff",
                   border: `2px solid ${e.fait ? accent : "#d1d5db"}`,
-                  boxShadow: active ? `0 0 0 3px ${accent}33` : undefined,
+                  boxShadow: active ? `0 0 0 3px ${accent}44` : undefined,
                 }}
-              />
-              <span className={`text-xs ${active ? "font-semibold" : "text-encre"}`} style={active ? { color: accent } : undefined}>
+              >
+                {/* coche blanche : étape franchie — l'état ne repose pas que sur la couleur */}
+                {e.fait && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" className="h-3.5 w-3.5">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              <span
+                className={`text-xs leading-snug ${active ? "font-semibold" : e.fait ? "font-medium text-encre" : "text-gris"}`}
+                style={active ? { color: accent } : undefined}
+              >
                 {e.label}
               </span>
               <span className="text-xs text-gris">{e.date}</span>
+              <span
+                className="mt-0.5 hidden rounded-full px-1.5 py-px text-[10px] font-medium sm:inline-block"
+                style={{ backgroundColor: clair, color: accent, opacity: active ? 1 : 0 }}
+              >
+                étape sélectionnée
+              </span>
             </button>
           );
         })}

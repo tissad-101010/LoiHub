@@ -97,7 +97,8 @@ export default function GuideLecture() {
             ))}
           </ol>
           <p className="mt-3 text-xs leading-relaxed text-gris">
-            <span className="font-semibold text-encre">Sur cette page :</span> cliquez une étape
+            <span className="font-semibold text-encre">Sur cette page :</span>
+            {" "}cliquez une étape
             du parcours pour voir le texte tel qu&apos;il était à ce moment-là.{" "}
             <span className="rounded bg-green-100 px-1 py-0.5 text-green-800">En vert</span> ce
             qui a été ajouté,{" "}

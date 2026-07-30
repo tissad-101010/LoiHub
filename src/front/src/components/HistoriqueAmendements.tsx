@@ -40,47 +40,68 @@ export default function HistoriqueAmendements({
           </button>
         )}
       </div>
-      <p className="mb-3 text-xs text-gris">Cliquez sur un amendement pour voir sa différence de version.</p>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        <div className="w-40 shrink-0 rounded-lg border border-bordure p-3 text-sm">
-          <div className="font-medium text-encre">Texte initial</div>
-          <div className="text-xs text-gris">version déposée</div>
-        </div>
-        {apercu.map((a) => {
-          const actif = a.numero === amendementActifNumero;
-          const deposeCetteEtape = a.dateDepot === etapeDate;
-          return (
-            <button
-              key={a.numero}
-              onClick={() => onSelect(a)}
-              className={`w-40 shrink-0 rounded-lg border p-3 text-left text-sm transition-colors ${
-                actif ? "border-bleu ring-1 ring-bleu" : "border-bordure hover:border-bleu"
-              }`}
-            >
-              <div className="font-medium text-encre">Amendement n°{a.numero}</div>
-              <div className="mt-2 flex items-center gap-2">
-                <ParlementaireAvatar depute={a.auteur} size="sm" />
-                <div className="min-w-0">
-                  <div className="truncate text-xs text-encre">{a.auteur.nom}</div>
-                  <div className="truncate text-xs text-gris">
-                    {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+      <p className="mb-3 text-xs text-gris">
+        Du texte déposé à la version finale : chaque carte est un amendement, dans l&apos;ordre
+        chronologique. Cliquez-en un pour voir sa différence de version.
+      </p>
+      {/* frise connectée : un fil relie le texte initial aux amendements puis à la
+          version finale — les cartes « flottent » au-dessus du fil */}
+      <div className="relative overflow-x-auto pb-2">
+        <div className="absolute left-0 right-0 top-1/2 hidden h-0.5 bg-bordure sm:block" aria-hidden />
+        <div className="relative flex items-stretch gap-0">
+          <div className="z-10 flex w-40 shrink-0 flex-col justify-center rounded-lg border border-dashed border-bordure bg-fond p-3 text-sm">
+            <div className="font-medium text-encre">Texte initial</div>
+            <div className="text-xs text-gris">version déposée</div>
+          </div>
+          {apercu.map((a) => {
+            const actif = a.numero === amendementActifNumero;
+            const deposeCetteEtape = a.dateDepot === etapeDate;
+            const pointCouleur =
+              a.statut === "Adopté" ? "bg-green-500" : a.statut === "Rejeté" ? "bg-red-400" : "bg-gray-300";
+            return (
+              <div key={a.numero} className="flex shrink-0 items-center">
+                {/* connecteur : point coloré selon le sort de l'amendement */}
+                <span className="z-10 mx-2 hidden items-center sm:flex" aria-hidden>
+                  <span className={`h-2 w-2 rounded-full ${pointCouleur} ring-2 ring-white`} />
+                </span>
+                <button
+                  onClick={() => onSelect(a)}
+                  className={`z-10 w-40 shrink-0 rounded-lg border bg-white p-3 text-left text-sm shadow-sm transition ${
+                    actif
+                      ? "border-bleu ring-1 ring-bleu"
+                      : "border-bordure hover:-translate-y-0.5 hover:border-bleu hover:shadow-md"
+                  }`}
+                >
+                  <div className="font-medium text-encre">Amendement n°{a.numero}</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <ParlementaireAvatar depute={a.auteur} size="sm" />
+                    <div className="min-w-0">
+                      <div className="truncate text-xs text-encre">{a.auteur.nom}</div>
+                      <div className="truncate text-xs text-gris">
+                        {[a.auteur.groupe, a.auteur.id !== "?" ? a.auteur.id : null].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                  <span title={statutExplication[a.statut]} className={`mt-2 inline-block cursor-help rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
+                    {a.statut}
+                  </span>
+                  <div className="mt-1 text-xs text-gris">{a.dateAdoption ?? a.dateDepot}</div>
+                  {deposeCetteEtape && (
+                    <div className="mt-1 text-xs font-medium text-bleu">Déposé lors de cette étape</div>
+                  )}
+                </button>
               </div>
-              <span title={statutExplication[a.statut]} className={`mt-2 inline-block cursor-help rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatut[a.statut]}`}>
-
-                {a.statut}
-              </span>
-              <div className="mt-1 text-xs text-gris">{a.dateAdoption ?? a.dateDepot}</div>
-              {deposeCetteEtape && (
-                <div className="mt-1 text-xs font-medium text-bleu">Déposé lors de cette étape</div>
-              )}
-            </button>
-          );
-        })}
-        <div className="w-40 shrink-0 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-          <div className="font-medium text-green-700">Version finale</div>
-          <div className="text-xs text-green-600">après amendements</div>
+            );
+          })}
+          <span className="z-10 mx-2 hidden items-center sm:flex" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-4 w-4 text-gris">
+              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <div className="z-10 flex w-40 shrink-0 flex-col justify-center rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+            <div className="font-medium text-green-700">Version finale</div>
+            <div className="text-xs text-green-600">après amendements</div>
+          </div>
         </div>
       </div>
 

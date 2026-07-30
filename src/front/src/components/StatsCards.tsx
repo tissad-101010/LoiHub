@@ -48,9 +48,12 @@ export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
     <div className="grid grid-cols-2 divide-x divide-y divide-bordure border border-bordure bg-white sm:divide-y-0 lg:grid-cols-4">
       {cards.map((c) => (
         <div key={c.label} className="p-5">
-          <div className="mb-2 flex items-center gap-2 text-gris">
-            <span className="text-gris">{c.icone}</span>
-            <span className="text-xs uppercase tracking-wide">{c.label}</span>
+          <div className="mb-3 flex items-center gap-2.5">
+            {/* pastille colorée : l'icône porte la couleur, le libellé reste en texte */}
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${c.bg} ${c.dispo ? c.fg : "text-gray-400"}`}>
+              {c.icone}
+            </span>
+            <span className="text-xs uppercase tracking-wide text-gris">{c.label}</span>
           </div>
           {c.dispo ? (
             <>

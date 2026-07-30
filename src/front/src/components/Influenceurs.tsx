@@ -62,8 +62,8 @@ export default function Influenceurs({ influenceurs }: { influenceurs: Article["
         )}
       </div>
       <p className="mb-3 text-xs text-gris">
-        Part des amendements <span className="font-medium">adoptés</span> sur cet article dont chaque parlementaire
-        est l&apos;auteur.
+        Part des amendements <span className="font-medium">adoptés</span>
+        {" "}sur cet article dont chaque parlementaire est l&apos;auteur.
       </p>
       {influenceurs.length === 0 ? (
         <p className="rounded-lg border border-dashed border-bordure bg-fond px-4 py-4 text-sm text-gris">
