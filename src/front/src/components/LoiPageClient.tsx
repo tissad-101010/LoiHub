@@ -7,7 +7,7 @@ import Fil from "@/components/Fil";
 import LoiHeader from "@/components/LoiHeader";
 import GuideLecture from "@/components/GuideLecture";
 import QuestionLoi from "@/components/QuestionLoi";
-import ParcoursHorizontal from "@/components/ParcoursHorizontal";
+import ParcoursVertical from "@/components/ParcoursVertical";
 import StatsCards from "@/components/StatsCards";
 import RepartitionGroupes from "@/components/RepartitionGroupes";
 import ConseilConstit from "@/components/ConseilConstit";
@@ -156,16 +156,18 @@ export default function LoiPageClient({
         <Fil items={[{ label: "Accueil", href: "/" }, { label: "Lois", href: "/lois" }, { label: loi.titre }]} />
         <LoiHeader loi={loi} />
         <GuideLecture />
+
+        {/* Deux colonnes (desktop) : le contenu à gauche, le parcours en timeline
+            verticale COLLANTE à droite — on change d'étape sans remonter la page.
+            Sur mobile, le parcours vient juste après le guide (ordre du DOM). */}
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <aside className="space-y-5 self-start lg:sticky lg:top-20 lg:order-2">
+            <ParcoursVertical etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
+            {projet.conseilConstit && <ConseilConstit cc={projet.conseilConstit} />}
+          </aside>
+
+          <div className="min-w-0 space-y-5 lg:order-1">
         <StatsCards stats={stats} />
-        <QuestionLoi dossierUid={projet.numero} />
-        {projet.repartitionGroupes.length > 0 && (
-          <RepartitionGroupes groupes={projet.repartitionGroupes} />
-        )}
-        {projet.scrutins.length > 0 && (
-          <ScrutinsLoi scrutins={projet.scrutins} total={projet.scrutinsTotal} />
-        )}
-        {projet.conseilConstit && <ConseilConstit cc={projet.conseilConstit} />}
-        <ParcoursHorizontal etapes={parcours} etapeActive={etapeActive} onSelect={selectEtape} />
 
         {(!etape || estVueSimple) && (
           <TexteLoiComplet
@@ -218,6 +220,16 @@ export default function LoiPageClient({
             )}
           </>
         )}
+
+        {projet.repartitionGroupes.length > 0 && (
+          <RepartitionGroupes groupes={projet.repartitionGroupes} />
+        )}
+        {projet.scrutins.length > 0 && (
+          <ScrutinsLoi scrutins={projet.scrutins} total={projet.scrutinsTotal} />
+        )}
+        <QuestionLoi dossierUid={projet.numero} />
+          </div>
+        </div>
       </main>
     </div>
   );
