@@ -218,8 +218,29 @@ model Scrutin {
   abstention  Int?
   nonVotant   Int?
   dossierUid  String?
+  // uid de l'amendement précis visé par le scrutin, reconstruit depuis le titre
+  // (« l'amendement n° X de M./Mme Y ») par correspondance stricte
+  // dossier + numéro + auteur (voir hackathon-an-2026 / scripts de rattachement).
+  amendementUid String?
 
   @@index([dossierUid])
+  @@index([amendementUid], map: "scrutin_amendement")
+}
+
+//
+// 🗳️ Position nominative d'un député sur un scrutin (~1,2 M de lignes,
+// restaurées depuis le dump). Interrogée en SQL brut ($queryRaw) dans
+// lib/data.ts pour éviter de matérialiser des millions de lignes côté Prisma —
+// le modèle est déclaré ici pour que le schéma reflète fidèlement la base.
+//
+model ScrutinVote {
+  id         BigInt  @id @default(autoincrement())
+  scrutinUid String?
+  acteurRef  String?
+  position   String?
+
+  @@index([acteurRef], map: "scrutinvote_acteur")
+  @@index([scrutinUid], map: "scrutinvote_scrutin")
 }
 
 //
