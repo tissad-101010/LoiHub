@@ -57,11 +57,15 @@ export default function ArticleTexte({
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <h2 className="titre text-xl text-encre">{article.titre}</h2>
         {am && (
-          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatutClass[am.statut]}`}>
-            {am.statut}
+          <span className="inline-flex items-center gap-1.5 rounded bg-bleu-100 px-2 py-0.5 text-xs font-medium text-bleu">
+            {/* « blame » législatif : l'origine de la modification affichée */}
+            Visé par l&apos;amendement n°{am.numero}
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${badgeStatutClass[am.statut]}`}>
+              {am.statut}
+            </span>
           </span>
         )}
       </div>

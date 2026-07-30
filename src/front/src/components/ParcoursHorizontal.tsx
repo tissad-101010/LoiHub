@@ -1,5 +1,6 @@
 import { ActeurEtape, EtapeParcours } from "@/lib/types";
 import { COULEUR_ACTEUR } from "@/lib/ui";
+import Terme from "./Terme";
 
 const LEGENDE: { acteur: ActeurEtape; label: string }[] = [
   { acteur: "depot", label: "Dépôt / adoption" },
@@ -19,7 +20,7 @@ export default function ParcoursHorizontal({
 }) {
   return (
     <div className="border border-bordure bg-white p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <h2 className="titre text-xl text-encre">Parcours législatif</h2>
         <div className="flex flex-wrap items-center gap-3 text-xs text-gris">
           {LEGENDE.map((l) => (
@@ -34,6 +35,11 @@ export default function ParcoursHorizontal({
           <span className="text-gris">· cliquez une étape pour explorer le texte</span>
         </div>
       </div>
+      <p className="mb-6 text-xs text-gris">
+        Le chemin du texte, de son dépôt à son entrée en vigueur. Les allers-retours entre
+        l&apos;Assemblée nationale et le Sénat forment la{" "}
+        <Terme mot="navette">navette parlementaire</Terme>.
+      </p>
       <div className="relative flex items-start">
         <div className="absolute left-0 right-0 top-3 h-0.5 bg-gray-200" />
         {etapes.map((e, i) => {

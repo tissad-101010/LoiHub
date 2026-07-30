@@ -26,7 +26,7 @@ function toItems(r: SearchResponse): Item[] {
   for (const a of r.amendements) {
     items.push({
       kind: "amendement",
-      href: a.dossierUid ? `/loi/${encodeURIComponent(a.dossierUid)}` : "#",
+      href: `/amendement/${encodeURIComponent(a.id)}`,
       titre: `Amendement ${a.numero}`,
       meta: [a.article, a.auteur, a.statut].filter(Boolean).join(" · "),
       extrait: a.extrait,
@@ -133,7 +133,6 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
 
   const go = useCallback(
     (item: Item) => {
-      if (item.href === "#") return;
       setOpen(false);
       router.push(item.href);
     },
@@ -252,10 +251,9 @@ export default function HomeSearch({ compact = false }: { compact?: boolean }) {
                     type="button"
                     onMouseEnter={() => setActive(gi)}
                     onClick={() => go(item)}
-                    disabled={item.href === "#"}
                     className={`flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition ${
                       isActive ? "bg-orange-50" : "hover:bg-fond"
-                    } ${item.href === "#" ? "cursor-default opacity-70" : ""}`}
+                    }`}
                   >
                     <span className="mt-0.5">
                       <Icone kind={item.kind} />

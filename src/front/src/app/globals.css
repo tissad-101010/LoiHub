@@ -79,3 +79,55 @@ body {
 .lien:hover {
   color: var(--color-bleu-survol);
 }
+
+/* ------------------------------------------------------------------ */
+/* Finitions globales                                                   */
+/* ------------------------------------------------------------------ */
+
+/* Sélection de texte aux couleurs du site */
+::selection {
+  background: var(--color-bleu-100);
+  color: var(--color-bleu);
+}
+
+/* Focus clavier visible et cohérent partout (accessibilité) */
+:focus-visible {
+  outline: 2px solid var(--color-bleu);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Ancres atteintes sans être cachées par le header sticky */
+html {
+  scroll-padding-top: 5rem;
+}
+
+/* Entrée douce des sections principales (une seule fois, au chargement).
+   Décalage en cascade via --delai posé par la classe utilitaire. */
+@keyframes apparition {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.apparait {
+  animation: apparition 0.5s ease-out both;
+  animation-delay: var(--delai, 0s);
+}
+
+/* Respect strict de la préférence utilisateur : aucune animation imposée */
+@media (prefers-reduced-motion: reduce) {
+  .apparait {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

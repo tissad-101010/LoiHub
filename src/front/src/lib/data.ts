@@ -11,6 +11,7 @@
 
 import { cache } from "react";
 import { prisma } from "./prisma";
+import { diffLines } from "./diff";
 import { texteEstPartiel } from "./ui";
 import { getInfoParlementaireOfficielle, photoParlementaireUrl } from "./parlementaires";
 import type {
@@ -318,30 +319,6 @@ function articleNumero(designation: string | null): string {
   return designation.replace(/^ART\.?\s*/i, "").trim() || designation;
 }
 
-// diff ligne-à-ligne (LCS) entre deux listes d'alinéas -> DiffLigne[]
-function diffLines(a: string[], b: string[]): DiffLigne[] {
-  const A = a.slice(0, 400);
-  const B = b.slice(0, 400);
-  const n = A.length,
-    m = B.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-  const out: DiffLigne[] = [];
-  let i = 0,
-    j = 0,
-    k = 0;
-  while (i < n && j < m) {
-    if (A[i] === B[j]) out.push({ numero: ++k, texte: A[i++], type: "inchange" }), j++;
-    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
-    else out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
-  }
-  while (i < n) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
-  while (j < m) out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
-  return out;
-}
-
 // { "Article 1er": [...] } -> Map "1" -> [...]  (indexé par numéro)
 function indexByNum(articles: Record<string, string[]>): Map<string, string[]> {
   const map = new Map<string, string[]>();
@@ -352,6 +329,102 @@ function indexByNum(articles: Record<string, string[]>): Map<string, string[]> {
   }
   return map;
 }
+
+// Chiffres-clés globaux du site (bandeau de la home). Comptés en base plutôt
+// qu'écrits en dur : ils restent justes si le dump évolue. Les 4 counts portent
+// sur des tables indexées -> quelques ms chacun.
+export const getStatsGlobales = cache(async function getStatsGlobales(): Promise<{
+  dossiers: number;
+  amendements: number;
+  deputes: number;
+  scrutins: number;
+}> {
+  const [dossiers, amendements, deputes, scrutins] = await Promise.all([
+    prisma.dossier.count(),
+    prisma.amendment.count(),
+    prisma.deputy.count(),
+    prisma.scrutin.count(),
+  ]);
+  return { dossiers, amendements, deputes, scrutins };
+});
+
+// Statistiques de la législature (page /statistiques) : agrégats globaux
+// calculés en SQL sur toute la base.
+export const getStatistiques = cache(async function getStatistiques(): Promise<{
+  chiffres: { dossiers: number; amendements: number; adoptes: number; deputes: number; scrutins: number };
+  parGroupe: GroupeStat[];
+  topDeputes: { id: string; nom: string; groupe: string | null; couleur: string; total: number; adoptes: number }[];
+  parMois: { mois: string; libelle: string; total: number }[];
+}> {
+  const [{ dossiers, amendements, deputes, scrutins }, adoptes] = await Promise.all([
+    getStatsGlobales(),
+    prisma.amendment.count({ where: { status: "ACCEPTED" } }),
+  ]);
+
+  // amendements par groupe politique, toute la législature
+  const groupesRows = await prisma.$queryRaw<{ groupe: string | null; total: bigint; adoptes: bigint }[]>`
+    SELECT d."group" AS groupe,
+           COUNT(a.id) AS total,
+           COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
+    FROM "Amendment" a
+    JOIN "Deputy" d ON d."uid" = a."authorId"
+    WHERE d."group" IS NOT NULL
+    GROUP BY d."group"
+    ORDER BY total DESC
+  `;
+  const parGroupe: GroupeStat[] = groupesRows.map((r) => ({
+    groupe: r.groupe ?? "?",
+    libelle: GROUPE_LIBELLE[r.groupe ?? ""] ?? r.groupe ?? "Inconnu",
+    couleur: couleurGroupe(r.groupe),
+    total: Number(r.total),
+    adoptes: Number(r.adoptes),
+  }));
+
+  // députés les plus actifs (auteurs d'amendements)
+  const topRows = await prisma.$queryRaw<
+    { uid: string; name: string; grp: string | null; total: bigint; adoptes: bigint }[]
+  >`
+    SELECT d."uid" AS uid, d."name" AS name, d."group" AS grp,
+           COUNT(a.id) AS total,
+           COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
+    FROM "Amendment" a
+    JOIN "Deputy" d ON d."uid" = a."authorId"
+    GROUP BY d."uid", d."name", d."group"
+    ORDER BY total DESC
+    LIMIT 10
+  `;
+  const topDeputes = topRows.map((r) => ({
+    id: r.uid,
+    nom: r.name,
+    groupe: r.grp,
+    couleur: couleurGroupe(r.grp),
+    total: Number(r.total),
+    adoptes: Number(r.adoptes),
+  }));
+
+  // activité mensuelle : amendements déposés par mois sur la législature
+  const moisRows = await prisma.$queryRaw<{ mois: Date; total: bigint }[]>`
+    SELECT date_trunc('month', a."dateDepot") AS mois, COUNT(*) AS total
+    FROM "Amendment" a
+    WHERE a."dateDepot" IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1
+  `;
+  const parMois = moisRows
+    .filter((r) => r.mois)
+    .map((r) => ({
+      mois: r.mois.toISOString().slice(0, 7),
+      libelle: `${MOIS[r.mois.getMonth()]} ${r.mois.getFullYear()}`,
+      total: Number(r.total),
+    }));
+
+  return {
+    chiffres: { dossiers, amendements, adoptes, deputes, scrutins },
+    parGroupe,
+    topDeputes,
+    parMois,
+  };
+});
 
 // Mémoïsé par requête (React cache) : la page loi ET son generateMetadata
 // l'appellent — on ne veut pas payer deux fois cette reconstruction lourde.
@@ -634,7 +707,9 @@ export const getProjetLoi = cache(async function getProjetLoi(
       deputesImpliques: auteurs.size,
       deputesTotal: 577,
       votes: scrutins.length,
-      heuresDebat: 0, // dataset débats non importé
+      // articles distincts visés par au moins un amendement (donnée réelle,
+      // contrairement aux heures de débat dont le dataset n'est pas importé)
+      articlesAmendes: new Set(amendements.map((a) => a.article).filter(Boolean)).size,
     },
     repartitionGroupes,
     scrutins,
@@ -1103,6 +1178,29 @@ export const getAmendement = cache(async function getAmendement(
   }
   const cosignataires = cosignIds.map((id) => deputeFromId(id, deputes));
 
+  // Scrutin public portant précisément sur cet amendement (vote en séance).
+  const scrutinRow = await prisma.scrutin.findFirst({
+    where: { amendementUid: uid },
+    orderBy: { dateScrutin: "asc" },
+    select: {
+      uid: true, numero: true, dateScrutin: true, titre: true,
+      sortCode: true, sortLibelle: true, pour: true, contre: true, abstention: true,
+    },
+  });
+  const scrutin = scrutinRow
+    ? {
+        uid: scrutinRow.uid,
+        numero: scrutinRow.numero ?? undefined,
+        date: formatDate(scrutinRow.dateScrutin?.toISOString()),
+        titre: scrutinRow.titre ?? "Scrutin public",
+        adopte: (scrutinRow.sortCode ?? "").toLowerCase().includes("adopt"),
+        sortLibelle: scrutinRow.sortLibelle ?? undefined,
+        pour: scrutinRow.pour ?? 0,
+        contre: scrutinRow.contre ?? 0,
+        abstention: scrutinRow.abstention ?? 0,
+      }
+    : undefined;
+
   return {
     uid: a.uid,
     numero: a.numeroLong ?? a.numeroOrdreDepot ?? "?",
@@ -1118,73 +1216,9 @@ export const getAmendement = cache(async function getAmendement(
     cosignataires,
     dossierUid: a.law?.dossier?.uid ?? undefined,
     dossierTitre: a.law?.dossier?.title ?? undefined,
+    scrutin,
   };
 });
-
-// Dossier par défaut = celui qui a le plus d'amendements liés (pour la démo).
-// Repli : s'il n'y a pas encore d'amendements, on prend n'importe quel dossier.
-export async function getDossierParDefaut(): Promise<string | null> {
-  const rows = await prisma.$queryRaw<{ uid: string; n: bigint }[]>`
-    SELECT d."uid" AS uid, COUNT(a.id) AS n
-    FROM "Dossier" d
-    JOIN "Law" l ON l."dossierId" = d.id
-    JOIN "Amendment" a ON a."lawId" = l.id
-    WHERE d."uid" IS NOT NULL
-    GROUP BY d."uid"
-    ORDER BY n DESC
-    LIMIT 1
-  `;
-  if (rows[0]?.uid) return rows[0].uid;
-
-  const fallback = await prisma.dossier.findFirst({
-    where: { uid: { not: null } },
-    select: { uid: true },
-  });
-  return fallback?.uid ?? null;
-}
-
-// Liste des dossiers (pour la page d'accueil), triés par nb d'amendements.
-export type DossierListItem = {
-  uid: string;
-  titre: string;
-  amendements: number;
-  adoptes: number;
-};
-
-export async function getDossiersList(query?: string): Promise<DossierListItem[]> {
-  const q = (query ?? "").trim();
-  const like = `%${q}%`;
-  const rows = q
-    ? await prisma.$queryRaw<{ uid: string; titre: string; n: bigint; adoptes: bigint }[]>`
-        SELECT d."uid" AS uid, d."title" AS titre,
-               COUNT(a.id) AS n,
-               COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
-        FROM "Dossier" d
-        JOIN "Law" l ON l."dossierId" = d.id
-        JOIN "Amendment" a ON a."lawId" = l.id
-        WHERE d."uid" IS NOT NULL AND d."title" ILIKE ${like}
-        GROUP BY d."uid", d."title"
-        ORDER BY n DESC
-        LIMIT 60`
-    : await prisma.$queryRaw<{ uid: string; titre: string; n: bigint; adoptes: bigint }[]>`
-        SELECT d."uid" AS uid, d."title" AS titre,
-               COUNT(a.id) AS n,
-               COUNT(a.id) FILTER (WHERE a."status" = 'ACCEPTED') AS adoptes
-        FROM "Dossier" d
-        JOIN "Law" l ON l."dossierId" = d.id
-        JOIN "Amendment" a ON a."lawId" = l.id
-        WHERE d."uid" IS NOT NULL
-        GROUP BY d."uid", d."title"
-        ORDER BY n DESC
-        LIMIT 60`;
-
-  return rows.map((r) => ({
-    uid: r.uid,
-    titre: r.titre,
-    amendements: Number(r.n),
-    adoptes: Number(r.adoptes),
-  }));
-}
 
 // thématique -> forme d'icône (heuristique sur le titre)
 function iconeFromTitre(t: string): IconeThematique {
@@ -1192,50 +1226,6 @@ function iconeFromTitre(t: string): IconeThematique {
   if (/logement|habitat|urbanis|loyer|foncier/.test(s)) return "logement";
   if (/énerg|energ|climat|carbone|nucl|électri|electri|renouvel/.test(s)) return "energie";
   return "numerique";
-}
-
-// Accueil : lois les plus amendées, au format LoiResume attendu par LoiCard
-export async function getLoisEnCours(limit = 12): Promise<LoiResume[]> {
-  const rows = await prisma.$queryRaw<
-    { uid: string; titre: string; n: bigint; dep: bigint }[]
-  >`
-    SELECT d."uid" AS uid, d."title" AS titre,
-           COUNT(a.id) AS n,
-           COUNT(DISTINCT a."authorId") AS dep
-    FROM "Dossier" d
-    JOIN "Law" l ON l."dossierId" = d.id
-    JOIN "Amendment" a ON a."lawId" = l.id
-    WHERE d."uid" IS NOT NULL
-    GROUP BY d."uid", d."title"
-    ORDER BY n DESC
-    LIMIT ${limit}
-  `;
-
-  // Un seul findMany pour tous les dossiers affichés (au lieu d'un findUnique
-  // par carte, séquentiel) -> supprime le N+1 sur la home.
-  const uids = rows.map((r) => r.uid);
-  const dossiers = await prisma.dossier.findMany({
-    where: { uid: { in: uids } },
-    select: { uid: true, raw: true },
-  });
-  const rawByUid = new Map(dossiers.map((d) => [d.uid as string, d.raw]));
-
-  return rows.map((r) => {
-    const dp = (rawByUid.get(r.uid) as any)?.dossierParlementaire ?? {};
-    const parcours = buildParcours(dp);
-    const derniere = [...parcours].reverse().find((e) => e.date);
-    return {
-      numero: r.uid,
-      titre: r.titre,
-      icone: iconeFromTitre(r.titre),
-      amendements: Number(r.n),
-      deputesImpliques: Number(r.dep),
-      derniereActualite: derniere?.date ?? "",
-      etape: derniere
-        ? { label: derniere.label, acteur: derniere.acteur }
-        : { label: "En cours", acteur: "depot" },
-    };
-  });
 }
 
 // Registre législatif COMPLET, paginé : tous les dossiers (avec titre), triés par

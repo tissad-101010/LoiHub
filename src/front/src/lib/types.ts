@@ -89,7 +89,7 @@ export interface ProjetLoi {
     deputesImpliques: number;
     deputesTotal: number;
     votes: number;
-    heuresDebat: number;
+    articlesAmendes: number;
   };
   repartitionGroupes: GroupeStat[];
   articles: Article[];
@@ -194,4 +194,7 @@ export interface AmendementDetail {
   cosignataires: Depute[]; // co-auteurs de l'amendement
   dossierUid?: string;
   dossierTitre?: string;
+  // Scrutin public portant précisément sur cet amendement, si les députés ont
+  // voté dessus en séance (rattaché par dossier + numéro + auteur).
+  scrutin?: Scrutin;
 }

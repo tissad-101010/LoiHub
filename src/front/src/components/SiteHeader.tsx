@@ -63,6 +63,7 @@ export default function SiteHeader() {
         <nav className="ml-auto flex items-center lg:ml-0">
           {lien("/lois", "Lois")}
           {lien("/deputes", "Députés")}
+          {lien("/statistiques", "Statistiques")}
           {lien("/a-propos", "À propos")}
         </nav>
       </div>

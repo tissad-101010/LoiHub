@@ -10,11 +10,11 @@ const ENJEUX = [
 
 const STACK = [
   { couche: "Framework", techno: "Next.js 16 (App Router) · React 19" },
-  { couche: "UI", techno: "Tailwind CSS 4 · GSAP" },
+  { couche: "UI", techno: "Tailwind CSS 4 (design inspiré du DSFR)" },
   { couche: "ORM / DB", techno: "Prisma + PostgreSQL" },
   { couche: "Recherche", techno: "Meilisearch (lois, amendements, députés)" },
   { couche: "Résumé en langage clair", techno: "IA générative (Mistral)" },
-  { couche: "Déploiement", techno: "Docker · AWS App Runner + ECR" },
+  { couche: "Déploiement", techno: "Docker Compose · reverse proxy Caddy (HTTPS)" },
 ];
 
 const SOURCES = [
@@ -96,15 +96,17 @@ export default function AProposPage() {
           </div>
         </Section>
 
-        <Section title="Fonctionnalités de la maquette">
+        <Section title="Fonctionnalités">
           <ul className="list-disc space-y-2 pl-5 text-sm text-encre">
-            <li><strong>En-tête</strong> — numéro, titre, statut, dates clés, lien vers le dossier législatif</li>
-            <li><strong>Parcours législatif</strong> — timeline : dépôt → commission → 1ère lecture AN → Sénat → 2nde lecture → adoption → promulgation</li>
-            <li><strong>Stats globales</strong> — amendements (total + adoptés), députés impliqués, scrutins publics, heures de débat</li>
-            <li><strong>Explorateur de texte</strong> — sommaire Titre &gt; Chapitre &gt; Article, avec l&apos;origine de chaque modification</li>
-            <li><strong>Diff viewer</strong> — comparaison entre deux versions d&apos;un article (supprimé / ajouté)</li>
+            <li><strong>En-tête</strong> — numéro, titre, statut, dates clés, lien vers le dossier législatif officiel</li>
+            <li><strong>Parcours législatif</strong> — timeline : dépôt → commission → lectures AN/Sénat (navette) → adoption → promulgation</li>
+            <li><strong>Stats du texte</strong> — amendements (total + adoptés), députés impliqués, scrutins publics, articles amendés</li>
+            <li><strong>Explorateur de texte</strong> — sommaire des articles amendés, texte à chaque étape, origine de chaque modification</li>
+            <li><strong>Diff viewer</strong> — comparaison ligne à ligne entre deux versions d&apos;un article (supprimé / ajouté)</li>
             <li><strong>Historique des amendements</strong> — texte initial → amendements successifs → version finale</li>
             <li><strong>« Qui a influencé cet article ? »</strong> — classement des députés par % de contribution</li>
+            <li><strong>Scrutins &amp; votes nominatifs</strong> — résultats des scrutins publics, et position de chaque député sur sa fiche</li>
+            <li><strong>Lexique citoyen</strong> — définitions en langage simple des termes parlementaires, au survol</li>
           </ul>
           <p className="mt-4 text-xs text-gris">
             Un résumé en langage clair de l&apos;article, généré par IA (Mistral) à la demande, est

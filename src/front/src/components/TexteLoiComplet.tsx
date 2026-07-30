@@ -29,6 +29,14 @@ export default function TexteLoiComplet({
         Sélectionnez une étape du parcours législatif ci-dessus pour explorer l&apos;historique et les amendements
         article par article.
       </p>
+      {articles.length === 0 && (
+        <p className="rounded-lg border border-dashed border-bordure bg-fond px-4 py-4 text-sm text-gris">
+          Aucun amendement n&apos;a été déposé sur ce texte pour le moment : il n&apos;y a donc
+          pas encore d&apos;article à explorer ici. Le texte intégral est consultable sur le
+          dossier officiel de l&apos;Assemblée nationale (lien en haut de page).
+        </p>
+      )}
+      {articles.length > 0 && (
       <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-2">
         <h1 className="text-lg font-bold text-encre">{titreLoi}</h1>
         {sommaire.map((t) => (
@@ -53,6 +61,7 @@ export default function TexteLoiComplet({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

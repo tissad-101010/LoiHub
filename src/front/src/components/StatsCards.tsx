@@ -21,19 +21,28 @@ const icones = {
       <path d="M8 12l2.5 2.5L16 9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  debats: (
+  articles: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-      <path d="M4 5h16v10H8l-4 4V5z" strokeLinejoin="round" />
+      <path d="M4 6h16M4 12h16M4 18h10" strokeLinecap="round" />
     </svg>
   ),
 };
 
 export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
-  const cards = [
+  const cards: {
+    label: string;
+    value: number;
+    sub: string;
+    icone: React.ReactNode;
+    bg: string;
+    fg: string;
+    dispo: boolean;
+    fallback?: string;
+  }[] = [
     { label: "Amendements", value: stats.amendements, sub: `dont ${stats.amendementsAdoptes} adoptés`, icone: icones.amendements, bg: "bg-bleu-100", fg: "text-bleu", dispo: true },
     { label: "Députés impliqués", value: stats.deputesImpliques, sub: `sur ${stats.deputesTotal}`, icone: icones.deputes, bg: "bg-bleu-100", fg: "text-bleu", dispo: true },
-    { label: "Votes enregistrés", value: stats.votes, sub: "scrutins publics", icone: icones.votes, bg: "bg-purple-100", fg: "text-purple-600", dispo: stats.votes > 0 },
-    { label: "Débats", value: stats.heuresDebat, sub: "heures de débats", icone: icones.debats, bg: "bg-pink-100", fg: "text-pink-600", dispo: stats.heuresDebat > 0 },
+    { label: "Votes enregistrés", value: stats.votes, sub: "scrutins publics", icone: icones.votes, bg: "bg-purple-100", fg: "text-purple-600", dispo: stats.votes > 0, fallback: "Ce texte n'a pas (encore) fait l'objet d'un vote public en séance." },
+    { label: "Articles amendés", value: stats.articlesAmendes, sub: "articles visés par un amendement", icone: icones.articles, bg: "bg-pink-100", fg: "text-pink-600", dispo: stats.articlesAmendes > 0, fallback: "Aucun amendement ne cible un article précis de ce texte." },
   ];
   return (
     <div className="grid grid-cols-2 divide-x divide-y divide-bordure border border-bordure bg-white sm:divide-y-0 lg:grid-cols-4">
@@ -50,8 +59,8 @@ export default function StatsCards({ stats }: { stats: ProjetLoi["stats"] }) {
             </>
           ) : (
             <>
-              <div className="text-lg font-medium text-gray-300">non disponible</div>
-              <div className="mt-0.5 text-xs text-gray-300">bientôt</div>
+              <div className="ref-mono text-3xl font-bold text-gray-300">0</div>
+              <div className="mt-0.5 text-xs text-gris">{c.fallback ?? c.sub}</div>
             </>
           )}
         </div>

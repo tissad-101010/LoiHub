@@ -2,18 +2,21 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import HomeHero from "@/components/HomeHero";
 import LoiCard from "@/components/LoiCard";
-import { getDossiersPage } from "@/lib/data";
+import { getDossiersPage, getStatsGlobales } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const { items, total } = await getDossiersPage({ page: 1, perPage: 6 });
+  const [{ items, total }, stats] = await Promise.all([
+    getDossiersPage({ page: 1, perPage: 6 }),
+    getStatsGlobales(),
+  ]);
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-12 p-6 pb-16">
-        <HomeHero featured={items[0]} />
+        <HomeHero featured={items[0]} stats={stats} />
 
         <section>
           <div className="mb-5 flex items-end justify-between">

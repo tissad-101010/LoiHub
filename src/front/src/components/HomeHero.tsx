@@ -3,14 +3,20 @@ import HomeSearch from "@/components/HomeSearch";
 import type { LoiResume } from "@/lib/types";
 import { COULEUR_ACTEUR } from "@/lib/ui";
 
-const STATS = [
-  { valeur: "2 926", label: "dossiers législatifs" },
-  { valeur: "121 109", label: "amendements" },
-  { valeur: "577", label: "députés" },
-  { valeur: "7 979", label: "scrutins publics" },
-];
+export interface StatsGlobales {
+  dossiers: number;
+  amendements: number;
+  deputes: number;
+  scrutins: number;
+}
 
-export default function HomeHero({ featured }: { featured?: LoiResume }) {
+export default function HomeHero({ featured, stats }: { featured?: LoiResume; stats: StatsGlobales }) {
+  const chiffres = [
+    { valeur: stats.dossiers, label: "dossiers législatifs" },
+    { valeur: stats.amendements, label: "amendements" },
+    { valeur: stats.deputes, label: "députés" },
+    { valeur: stats.scrutins, label: "scrutins publics" },
+  ];
   const c = featured ? COULEUR_ACTEUR[featured.etape.acteur] : null;
   const refFeatured = featured?.numero.match(/N(\d+)/)?.[1] ?? featured?.numero;
 
@@ -18,7 +24,7 @@ export default function HomeHero({ featured }: { featured?: LoiResume }) {
     <section>
       <div className="grid grid-cols-1 gap-10 border-b border-bordure pb-10 lg:grid-cols-12">
         {/* Colonne éditoriale */}
-        <div className="lg:col-span-7">
+        <div className="apparait lg:col-span-7">
           <div className="ref-mono text-xs uppercase tracking-widest text-bleu">
             Données ouvertes · Assemblée nationale
           </div>
@@ -39,7 +45,7 @@ export default function HomeHero({ featured }: { featured?: LoiResume }) {
 
         {/* Loi à la une — tuile plate façon DSFR */}
         {featured && c && (
-          <div className="lg:col-span-5">
+          <div className="apparait lg:col-span-5" style={{ "--delai": "0.12s" } as React.CSSProperties}>
             <Link
               href={`/loi/${featured.numero}`}
               className="group flex h-full flex-col border border-bordure bg-fond p-6 transition hover:bg-white hover:shadow-[0_8px_24px_rgba(0,0,18,0.08)]"
@@ -79,10 +85,12 @@ export default function HomeHero({ featured }: { featured?: LoiResume }) {
       </div>
 
       {/* Chiffres-clés — bande structurée */}
-      <dl className="grid grid-cols-2 divide-x divide-bordure border-b border-bordure sm:grid-cols-4">
-        {STATS.map((s) => (
+      <dl className="apparait grid grid-cols-2 divide-x divide-bordure border-b border-bordure sm:grid-cols-4" style={{ "--delai": "0.2s" } as React.CSSProperties}>
+        {chiffres.map((s) => (
           <div key={s.label} className="px-5 py-5 first:pl-0">
-            <dt className="ref-mono text-3xl font-bold tracking-tight text-bleu">{s.valeur}</dt>
+            <dt className="ref-mono text-3xl font-bold tracking-tight text-bleu">
+              {s.valeur.toLocaleString("fr-FR")}
+            </dt>
             <dd className="mt-1 text-sm text-gris">{s.label}</dd>
           </div>
         ))}

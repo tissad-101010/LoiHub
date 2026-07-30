@@ -15,22 +15,40 @@ const MAX_LONGUEUR = 12000; // on tronque au-delà (coût / limites de contexte)
 // cache mémoire process (vidé à chaque redémarrage) : texte -> résumé
 const cache = new Map<string, string>();
 
+// Prompt adapté au type de contenu (article de loi ou amendement).
+const PROMPTS = {
+  article:
+    "Tu es un assistant juridique. Résume l'article de loi fourni en français, " +
+    "de façon claire et neutre, en 3 à 5 phrases. Va à l'essentiel : ce que " +
+    "l'article prévoit et pour qui. N'invente rien qui ne figure pas dans le texte.",
+  amendement:
+    "Tu es un assistant juridique. On te fournit un amendement parlementaire " +
+    "(son dispositif, et éventuellement l'exposé des motifs de son auteur). " +
+    "Résume en français, de façon claire et neutre, en 2 à 4 phrases : ce que " +
+    "l'amendement change concrètement dans le texte, et pourquoi son auteur le " +
+    "propose si l'exposé des motifs l'indique. N'invente rien qui ne figure pas " +
+    "dans le texte fourni.",
+} as const;
+
 export async function POST(request: Request) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
+    // 503 (et non 500) : déploiement sans clé Mistral -> le bouton côté client
+    // se masque proprement au lieu d'afficher une erreur technique.
     return Response.json(
-      { error: "MISTRAL_API_KEY absente côté serveur." },
-      { status: 500 }
+      { error: "Le résumé par IA n'est pas activé sur ce déploiement." },
+      { status: 503 }
     );
   }
 
-  let body: { texte?: unknown };
+  let body: { texte?: unknown; type?: unknown };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "Corps de requête invalide." }, { status: 400 });
   }
 
+  const type = body.type === "amendement" ? "amendement" : "article";
   const texte = typeof body.texte === "string" ? body.texte.trim() : "";
   if (texte.length < MIN_LONGUEUR) {
     return Response.json(
@@ -39,7 +57,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const cached = cache.get(texte);
+  const cacheKey = `${type}:${texte}`;
+  const cached = cache.get(cacheKey);
   if (cached) return Response.json({ resume: cached, cache: true });
 
   const contenu = texte.slice(0, MAX_LONGUEUR);
@@ -55,13 +74,7 @@ export async function POST(request: Request) {
         model: MODELE,
         temperature: 0.2,
         messages: [
-          {
-            role: "system",
-            content:
-              "Tu es un assistant juridique. Résume l'article de loi fourni en français, " +
-              "de façon claire et neutre, en 3 à 5 phrases. Va à l'essentiel : ce que " +
-              "l'article prévoit et pour qui. N'invente rien qui ne figure pas dans le texte.",
-          },
+          { role: "system", content: PROMPTS[type] },
           { role: "user", content: contenu },
         ],
       }),
@@ -81,7 +94,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Réponse Mistral vide." }, { status: 502 });
     }
 
-    cache.set(texte, resume);
+    cache.set(cacheKey, resume);
     return Response.json({ resume });
   } catch (e) {
     return Response.json(

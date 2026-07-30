@@ -1,34 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import type { DiffLigne } from "@/lib/types";
-
-// diff ligne-à-ligne (LCS) entre deux listes d'alinéas -> DiffLigne[]
-function diffLines(a: string[], b: string[]): DiffLigne[] {
-  const A = a.slice(0, 400);
-  const B = b.slice(0, 400);
-  const n = A.length,
-    m = B.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-  const out: DiffLigne[] = [];
-  let i = 0,
-    j = 0,
-    k = 0;
-  while (i < n && j < m) {
-    if (A[i] === B[j]) out.push({ numero: ++k, texte: A[i++], type: "inchange" }), j++;
-    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
-    else out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
-  }
-  while (i < n) out.push({ numero: ++k, texte: A[i++], type: "supprime" });
-  while (j < m) out.push({ numero: ++k, texte: B[j++], type: "ajoute" });
-  return out;
-}
+import { diffLines } from "@/lib/diff";
 import { texteEstPartiel } from "@/lib/ui";
 import SiteHeader from "@/components/SiteHeader";
 import Fil from "@/components/Fil";
 import LoiHeader from "@/components/LoiHeader";
+import GuideLecture from "@/components/GuideLecture";
+import QuestionLoi from "@/components/QuestionLoi";
 import ParcoursHorizontal from "@/components/ParcoursHorizontal";
 import StatsCards from "@/components/StatsCards";
 import RepartitionGroupes from "@/components/RepartitionGroupes";
@@ -173,7 +151,9 @@ export default function LoiPageClient({
       <main className="mx-auto max-w-7xl space-y-5 p-6">
         <Fil items={[{ label: "Accueil", href: "/" }, { label: "Lois", href: "/lois" }, { label: loi.titre }]} />
         <LoiHeader loi={loi} />
+        <GuideLecture />
         <StatsCards stats={stats} />
+        <QuestionLoi dossierUid={projet.numero} />
         {projet.repartitionGroupes.length > 0 && (
           <RepartitionGroupes groupes={projet.repartitionGroupes} />
         )}
