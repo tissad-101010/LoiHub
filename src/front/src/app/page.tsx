@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import HomeHero from "@/components/HomeHero";
+import HomeFeatures from "@/components/HomeFeatures";
 import LoiCard from "@/components/LoiCard";
 import { getDossiersPage, getStatsGlobales } from "@/lib/data";
 
@@ -17,6 +18,8 @@ export default async function Home() {
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-12 p-6 pb-16">
         <HomeHero featured={items[0]} stats={stats} />
+
+        <HomeFeatures />
 
         <section>
           <div className="mb-5 flex items-end justify-between">

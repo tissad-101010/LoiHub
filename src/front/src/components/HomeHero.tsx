@@ -49,7 +49,7 @@ export default function HomeHero({ featured, stats }: { featured?: LoiResume; st
           <div className="apparait lg:col-span-5" style={{ "--delai": "0.12s" } as React.CSSProperties}>
             <Link
               href={`/loi/${featured.numero}`}
-              className="group flex h-full flex-col border border-bordure bg-fond p-6 transition hover:bg-white hover:shadow-[0_8px_24px_rgba(0,0,18,0.08)]"
+              className="group flex h-full flex-col justify-center border border-bordure bg-fond p-6 transition hover:bg-white hover:shadow-[0_8px_24px_rgba(0,0,18,0.08)]"
             >
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rouge">
                 <span className="h-1.5 w-1.5 rounded-full bg-rouge" />
@@ -65,7 +65,7 @@ export default function HomeHero({ featured, stats }: { featured?: LoiResume; st
                 {featured.etape.label}
               </span>
 
-              <div className="mt-auto flex gap-8 border-t border-bordure pt-5">
+              <div className="mt-5 flex gap-8 border-t border-bordure pt-5">
                 <div>
                   <div className="ref-mono text-2xl font-bold text-encre">
                     {featured.amendements.toLocaleString("fr-FR")}

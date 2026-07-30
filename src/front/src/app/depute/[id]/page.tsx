@@ -118,7 +118,7 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-4xl space-y-8 p-6">
+      <main className="mx-auto max-w-7xl space-y-6 p-6">
         <Fil items={[{ label: "Accueil", href: "/" }, { label: "Députés", href: "/deputes" }, { label: depute.nom }]} />
         {/* En-tête : carte sombre teintée de la couleur politique (comme LoiHeader) */}
         <div
@@ -179,14 +179,61 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard valeur={depute.stats.amendements} label="Amendements déposés" />
-          <StatCard valeur={depute.stats.amendementsAdoptes} label="Amendements adoptés" />
-          <StatCard valeur={depute.stats.textesDeposes} label="Textes déposés" />
-          <StatCard valeur={depute.stats.votes || "—"} label="Votes recensés" />
-        </div>
+        {/* Deux colonnes (desktop) : l'activité détaillée à gauche, les repères
+            chiffrés (stats + bilan des votes) dans une colonne latérale sticky. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <aside className="space-y-4 self-start lg:sticky lg:top-20 lg:order-2">
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard valeur={depute.stats.amendements} label="Amendements déposés" />
+              <StatCard valeur={depute.stats.amendementsAdoptes} label="Amendements adoptés" />
+              <StatCard valeur={depute.stats.textesDeposes} label="Textes déposés" />
+              <StatCard valeur={depute.stats.votes || "—"} label="Votes recensés" />
+            </div>
 
+            {depute.bilanVotes && depute.stats.votes > 0 && (
+              <div className="border border-bordure bg-white p-4">
+                <h2 className="text-sm font-semibold text-encre">Bilan des votes</h2>
+                <p className="mb-3 mt-0.5 text-xs text-gris">
+                  Ses positions sur l&apos;ensemble des scrutins publics.
+                </p>
+                {(() => {
+                  const b = depute.bilanVotes;
+                  const total = b.pour + b.contre + b.abstention + b.nonVotant || 1;
+                  const seg = (n: number) => `${(n / total) * 100}%`;
+                  return (
+                    <>
+                      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-fond-alt">
+                        <div style={{ width: seg(b.pour) }} className="bg-green-500" />
+                        <div style={{ width: seg(b.contre) }} className="bg-red-500" />
+                        <div style={{ width: seg(b.abstention) }} className="bg-gray-400" />
+                        <div style={{ width: seg(b.nonVotant) }} className="bg-gray-200" />
+                      </div>
+                      <ul className="mt-3 space-y-1.5 text-xs">
+                        {(
+                          [
+                            ["Pour", b.pour, "bg-green-500"],
+                            ["Contre", b.contre, "bg-red-500"],
+                            ["Abstention", b.abstention, "bg-gray-400"],
+                            ["Non-votant", b.nonVotant, "bg-gray-200"],
+                          ] as const
+                        ).map(([label, n, dot]) => (
+                          <li key={label} className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${dot}`} />
+                            <span className="text-gris">{label}</span>
+                            <span className="ref-mono ml-auto font-semibold text-encre">
+                              {n.toLocaleString("fr-FR")}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </aside>
+
+          <div className="min-w-0 space-y-8 lg:order-1">
         {/* Activité (amendements par mois) */}
         <ActiviteDepute activite={depute.activite} couleur={depute.couleur} />
 
@@ -270,24 +317,9 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
             <EmptyCard>Aucun vote de ce député dans les scrutins publics disponibles.</EmptyCard>
           ) : (
             <div className="space-y-3">
-              {depute.bilanVotes && (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(
-                    [
-                      ["Pour", depute.bilanVotes.pour, "text-green-700", "bg-green-50"],
-                      ["Contre", depute.bilanVotes.contre, "text-red-700", "bg-red-50"],
-                      ["Abstention", depute.bilanVotes.abstention, "text-encre", "bg-fond"],
-                      ["Non-votant", depute.bilanVotes.nonVotant, "text-gris", "bg-fond"],
-                    ] as const
-                  ).map(([label, n, fg, bg]) => (
-                    <div key={label} className={`${bg} px-3 py-2`}>
-                      <div className={`text-lg font-bold ${fg}`}>{n.toLocaleString("fr-FR")}</div>
-                      <div className="text-xs text-gris">{label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-xs text-gris">Derniers scrutins :</div>
+              <div className="text-xs text-gris">
+                Derniers scrutins (le bilan complet est dans la colonne de droite) :
+              </div>
               <ul className="space-y-2">
                 {depute.votes.map((v, i) => {
                   const posClass =
@@ -325,6 +357,8 @@ export default async function DeputePage({ params }: { params: Promise<{ id: str
             </div>
           )}
         </Section>
+          </div>
+        </div>
       </main>
     </div>
   );
