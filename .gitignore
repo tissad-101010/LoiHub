@@ -161,3 +161,4 @@ vite.config.ts.timestamp-*
 # copies de travail obsolètes (ancien front dupliqué)
 /web/
 /front/
+docker-compose.override.yml

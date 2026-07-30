@@ -90,6 +90,9 @@ services:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/loihub"
       MEILI_HOST: "http://meilisearch:7700"
       MEILI_MASTER_KEY: "${MEILI_MASTER_KEY:-loihub-dev-master-key}"
+      # Clé Mistral (facultative) : lue depuis .env (non versionné) ou l'env shell.
+      # Sans clé, le bouton « Résumer l'article (IA) » se masque proprement.
+      MISTRAL_API_KEY: "${MISTRAL_API_KEY:-}"
       NODE_ENV: production
       TZ: "Europe/Paris"
     ports:
