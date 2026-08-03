@@ -1,5 +1,3 @@
-# Template DEFI.md
-
 ### Nom du défi
 LoiHub, Le Hub de la loi
 
@@ -10,7 +8,7 @@ LoiHub est une plateforme qui permet d’explorer les lois françaises comme si 
 Tahar Issad, FullStack Developer/Software Engineer student @42Paris
 
 ### URL de démonstration
-https://p2vdu3d4me.eu-west-3.awsapprunner.com/
+https://loihub.retrystudio.com/
 
 ### Description longue
 **Contexte**
@@ -39,11 +37,21 @@ Voir comment un texte évolue entre sa version initiale, les amendements et la v
 - Diff législatif
 Afficher clairement ce qui a été ajouté, supprimé ou modifié dans un article de loi.
 - Git blame législatif
-Identifier qui est à l’origine de chaque phrase d’une loi, via quel amendement et à quelle date.
+En regard de chaque alinéa, la version du texte qui l’a introduit — dépôt, commission, séance, navette — et, lorsque la correspondance est certaine, l’amendement adopté et son auteur.
 - Timeline interactive
 Explorer la chronologie complète d’un texte : dépôt, commissions, séances, votes.
+- Votes nominatifs
+Les scrutins publics rattachés à chaque texte et à chaque amendement, avec la position de chaque député ventilée par groupe.
 - Explications IA
 Résumer les changements complexes en langage simple pour les citoyens.
+
+**Périmètre des données**
+
+Tout provient des jeux ouverts de l’Assemblée nationale, sans saisie manuelle : 2 926 dossiers
+législatifs, 121 109 amendements, 577 députés, 7 979 scrutins publics et 1 215 050 positions de
+vote nominatives. La lecture article par article, le diff et le blame supposent que l’Assemblée
+ait publié le texte articulé du dossier : c’est le cas pour une partie d’entre eux, et l’interface
+signale explicitement les autres plutôt que d’afficher une page vide.
 
 
 
@@ -54,13 +62,13 @@ Résumer les changements complexes en langage simple pour les citoyens.
 - Tahar Issad
 
 ### Ressources utilisées
-Cochez les ressources utilisées en remplaçant `[ ]` par `[x]`.
+<!-- Consigne du gabarit : cocher en remplaçant [ ] par [x]. -->
 
 - [ ] `openfisca-france-parameters` — Base de données de paramètres ✺ OpenFisca
 - [x] `an-dossiers-legislatifs` — Dossiers législatifs de l'Assemblée nationale (législature courante) ✺ Assemblée nationale
 - [x] `an-amendements-xvii` — Amendements déposés à l'Assemblée nationale (législature actuelle) ✺ Assemblée nationale
 - [ ] `an-comptes-rendus` — Comptes rendus de la séance publique à l'Assemblée nationale (législature actuelle) ✺ Assemblée nationale
-- [ ] `an-votes-xvii` — Votes des députés (législature actuelle) ✺ Assemblée nationale
+- [x] `an-votes-xvii` — Votes des députés (législature actuelle) ✺ Assemblée nationale
 - [x] `an-deputes-en-exercice` — Députés en exercice ✺ Assemblée nationale
 - [x] `an-deputes-historique` — Historique des députés ✺ Assemblée nationale
 - [ ] `an-deputes-senateurs-ministres-par-legislature` — Députés, sénateurs et ministres d'une législature ✺ Assemblée nationale
@@ -85,10 +93,56 @@ Cochez les ressources utilisées en remplaçant `[ ]` par `[x]`.
 - [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch
 
 ### Galerie
-- ![image cover de LoiHub](images/coverLH.png)
-- ![Accueil de LoiHub](images/image-1.png)
-- ![Visuel de l'interface de LoiHub](images/image-2.png)
-- ![Visuel de l'interface de LoiHub](images/image-3.png)
+- ![LoiHub — explorer les lois comme du code source versionné](images/coverLH.png)
+- ![Accueil : un diff législatif réel en page d'entrée, avec l'amendement qui l'a produit et son auteur](images/image-1.png)
+- ![Page d'une loi : sommaire des articles, origine de chaque modification, comparaison de versions et parcours législatif](images/image-2.png)
+- ![Les quatre entrées du projet : diff, blame, historique complet et explications en langage clair](images/image-3.png)
 
 ### Documents
 - [Présentation LoiHub](docs/loihub-presentation.pdf)
+
+<!-- VIDÉO DE DÉMONSTRATION — comment le site du hackathon la récupère.
+     Le type du document est déduit de l'EXTENSION du fichier : rien d'autre à déclarer.
+
+  Voie recommandée — une entrée de cette section « Documents » vers un .mp4 :
+  la page du défi le rend en bloc vidéo 16/9 pleine largeur dans « Documents du
+  défi », le traitement le plus visible de toute la fiche. Huit défis procèdent
+  ainsi. Marche à suivre :
+    1. exporter en .mp4 — sur 38 fiches lues, les 8 vidéos déclarées sont TOUTES
+       en .mp4 ; aucun .webm, .mov, YouTube ou Vimeo observé, donc hors .mp4 on ne
+       sait pas ce que le site fait
+    2. déposer le fichier dans hackathon-an-2026/docs/, sans espace ni accent dans
+       le nom, et le pousser AVANT d'ajouter la ligne ci-dessous
+    3. ajouter au-dessus, dans cette section, la ligne :
+           - [Vidéo de démonstration — parcours complet (~2 min)](docs/demo-loihub.mp4)
+       Le libellé affiché est le texte ENTRE CROCHETS ; ce qui précède le crochet
+       ouvrant est supprimé au rendu (LegisLens écrit « - 🎥 [Vidéo… ] » et l'emoji
+       disparaît). Mettre la durée dans les crochets, comme les autres équipes.
+
+  NE PAS ajouter la ligne avant que le fichier soit poussé : le site afficherait un
+  document en lien mort.
+
+  Autre emplacement, le champ dédié demoVideoUrl : il se remplit depuis la
+  section « URL de démonstration » quand celle-ci pointe vers un fichier vidéo DU
+  DÉPÔT en lien relatif, et non vers une URL absolue (seul défi à l'utiliser :
+  codeberg.org/rvba/tablette-02). Notre section « URL de démonstration » contient
+  l'URL de la démo en ligne, qui alimente demoUrl et produit le bouton
+  « Démonstration » des livrables. Aucun défi n'ayant renseigné les deux champs à
+  la fois, on ne sait pas si les faire cohabiter dans la même section fonctionne :
+  à tester avant de sacrifier le lien vers la démo en ligne, plus utile qu'une
+  vidéo pour un jury qui veut cliquer.
+
+  Le PDF de présentation est volontairement référencé DEUX fois : ici, pour la
+  carte de « Documents du défi », et dans « Diapositives de présentation »
+  ci-dessous, qui alimente le bouton dédié des livrables. Ce n'est pas un oubli. -->
+
+<!-- À FAIRE, BLOQUANT : docs/loihub-presentation.pdf fait 0 OCTET, y compris dans le
+     commit publié (blob e69de29b, le blob vide de Git). La fiche en ligne propose
+     donc déjà un document vide au téléchargement. Les DEUX champs ci-dessous le
+     citent — la carte de « Documents du défi » et le bouton « Diapositives de la
+     présentation » des livrables : tant que le fichier n'a pas de contenu, mieux
+     vaut ne pas pousser la section ci-dessous, elle ne ferait qu'ajouter un second
+     lien mort bien visible. -->
+
+### Diapositives de présentation
+[Diapositives de présentation (PDF)](docs/loihub-presentation.pdf)
