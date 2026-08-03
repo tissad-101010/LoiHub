@@ -15,6 +15,38 @@ function TagEtape({ loi }: { loi: LoiResume }) {
   );
 }
 
+// Le texte articulé n'est publié en open data que pour une partie des dossiers.
+// Sans lui, pas de lecture article par article, pas de diff, pas de blame — on le
+// dit AVANT le clic plutôt que de laisser tomber sur une page vide.
+function TagTexte({ loi }: { loi: LoiResume }) {
+  if (loi.versionsTexte >= 2)
+    return (
+      <span
+        title={`${loi.versionsTexte} versions du texte publiées : évolution comparable article par article.`}
+        className="inline-flex w-fit items-center gap-1 bg-bleu-100 px-2 py-0.5 text-xs font-medium text-bleu"
+      >
+        {loi.versionsTexte} versions comparables
+      </span>
+    );
+  if (loi.versionsTexte === 1)
+    return (
+      <span
+        title="Une seule version du texte est publiée : lecture possible, comparaison impossible."
+        className="inline-flex w-fit items-center gap-1 bg-fond-alt px-2 py-0.5 text-xs text-gris"
+      >
+        texte publié
+      </span>
+    );
+  return (
+    <span
+      title="L'Assemblée nationale ne publie pas le texte articulé de ce dossier : seuls les amendements et les votes sont consultables."
+      className="inline-flex w-fit cursor-help items-center gap-1 bg-fond-alt px-2 py-0.5 text-xs text-gris"
+    >
+      texte non publié
+    </span>
+  );
+}
+
 function Chiffres({ loi }: { loi: LoiResume }) {
   return (
     <div className="flex gap-5 text-xs text-gris">
@@ -42,6 +74,7 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
           <h3 className="titre truncate text-base text-encre group-hover:text-bleu">{loi.titre}</h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-3">
             <TagEtape loi={loi} />
+            <TagTexte loi={loi} />
             <span className="text-xs text-gris">MàJ {loi.derniereActualite}</span>
           </div>
         </div>
@@ -63,7 +96,10 @@ export default function LoiCard({ loi, layout = "vertical" }: { loi: LoiResume; 
         <TagEtape loi={loi} />
       </div>
       <h3 className="titre mt-3 text-lg leading-snug text-encre group-hover:text-bleu">{loi.titre}</h3>
-      <div className="mt-2 text-xs text-gris">Dernière actualité : {loi.derniereActualite}</div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <TagTexte loi={loi} />
+        <span className="text-xs text-gris">MàJ {loi.derniereActualite}</span>
+      </div>
       <div className="mt-4 flex items-center justify-between border-t border-bordure pt-3">
         <Chiffres loi={loi} />
         <span className="text-sm font-semibold text-bleu group-hover:underline">Ouvrir →</span>

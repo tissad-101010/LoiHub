@@ -1,67 +1,56 @@
-import { Article } from "@/lib/types";
+"use client";
+import { useState } from "react";
+import type { Article } from "@/lib/types";
 
-type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
-
+// Lecture suivie du texte : tous les articles amendés à la file.
+//
+// Replié par défaut, et SANS conteneur à défilement interne : une boîte
+// `overflow-y-auto` au milieu de la page capturait la molette et empêchait de
+// faire défiler la page depuis cette zone. Ici le contenu s'insère dans le flux
+// normal, on le déplie quand on veut le lire.
 export default function TexteLoiComplet({
   titreLoi,
   articles,
-  sommaire,
 }: {
   titreLoi: string;
   articles: Article[];
-  sommaire: SommaireData;
 }) {
-  const texteParNumero = new Map(articles.map((a) => [a.numero, a]));
-  const numeroFromLabel = (label: string) => label.replace("Article ", "");
-
-  // Aperçu : cette vue sert de survol du texte. Le texte intégral (et le diff
-  // par version) est disponible en sélectionnant une étape du parcours.
-  const APERCU = 420;
-  const apercu = (t: string) => (t.length > APERCU ? t.slice(0, APERCU).trimEnd() + "…" : t);
+  const [ouvert, setOuvert] = useState(false);
+  if (articles.length === 0) return null;
 
   return (
-    <div className="border border-bordure bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="titre text-xl text-encre">Texte de la loi — articles amendés</h2>
-        <span className="text-xs text-gris">{articles.length} articles</span>
-      </div>
-      <p className="mb-4 text-xs text-gris">
-        Sélectionnez une étape du parcours législatif ci-dessus pour explorer l&apos;historique et les amendements
-        article par article.
-      </p>
-      {articles.length === 0 && (
-        <p className="rounded-lg border border-dashed border-bordure bg-fond px-4 py-4 text-sm text-gris">
-          Aucun amendement n&apos;a été déposé sur ce texte pour le moment : il n&apos;y a donc
-          pas encore d&apos;article à explorer ici. Le texte intégral est consultable sur le
-          dossier officiel de l&apos;Assemblée nationale (lien en haut de page).
-        </p>
+    <section className="border border-bordure bg-white">
+      <h2>
+        <button
+          type="button"
+          onClick={() => setOuvert((v) => !v)}
+          aria-expanded={ouvert}
+          className="flex w-full items-center justify-between gap-3 p-5 text-left transition hover:bg-fond"
+        >
+          <span>
+            <span className="titre block text-xl text-encre">Lire le texte à la file</span>
+            <span className="mt-0.5 block text-xs text-gris">
+              Les {articles.length} articles amendés, dans l&apos;ordre de la loi — dernière version
+              publiée.
+            </span>
+          </span>
+          <span aria-hidden className="shrink-0 text-gris">
+            {ouvert ? "▲" : "▼"}
+          </span>
+        </button>
+      </h2>
+
+      {ouvert && (
+        <div className="space-y-5 border-t border-bordure px-5 py-5">
+          <h3 className="text-lg font-bold text-encre">{titreLoi}</h3>
+          {articles.map((a) => (
+            <article key={a.numero}>
+              <h4 className="text-sm font-semibold text-encre">{a.titre}</h4>
+              <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-encre">{a.texte}</p>
+            </article>
+          ))}
+        </div>
       )}
-      {articles.length > 0 && (
-      <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-2">
-        <h1 className="text-lg font-bold text-encre">{titreLoi}</h1>
-        {sommaire.map((t) => (
-          <div key={t.titre}>
-            <h3 className="mb-2 titre text-xl text-encre">{t.titre}</h3>
-            {t.chapitres.map((c, i) => (
-              <div key={i} className="mb-3 pl-2">
-                {c.nom && <h4 className="mb-2 text-sm font-medium text-gris">{c.nom}</h4>}
-                {c.articles.map((label) => {
-                  const article = texteParNumero.get(numeroFromLabel(label));
-                  return (
-                    <div key={label} className="mb-3 pl-2">
-                      <div className="text-sm font-medium text-encre">{label}</div>
-                      <p className="whitespace-pre-line text-sm leading-relaxed text-encre">
-                        {article?.texte ? apercu(article.texte) : "Texte non renseigné."}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      )}
-    </div>
+    </section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { diffLines } from "@/lib/diff";
+import { calculeBlame } from "@/lib/blame";
 import { texteEstPartiel } from "@/lib/ui";
 import SiteHeader from "@/components/SiteHeader";
 import Fil from "@/components/Fil";
@@ -14,28 +14,15 @@ import ConseilConstit from "@/components/ConseilConstit";
 import ScrutinsLoi from "@/components/ScrutinsLoi";
 import Sommaire from "@/components/Sommaire";
 import ArticleTexte from "@/components/ArticleTexte";
+import DiffViewer from "@/components/DiffViewer";
+import OrigineModification from "@/components/OrigineModification";
+import EvolutionTexte from "@/components/EvolutionTexte";
 import HistoriqueAmendements from "@/components/HistoriqueAmendements";
 import Influenceurs from "@/components/Influenceurs";
 import TexteLoiComplet from "@/components/TexteLoiComplet";
-import { Amendement, Depute, ProjetLoi, StatutAmendement, VersionArticle } from "@/lib/types";
+import { Amendement, ArticleDetail, ProjetLoi } from "@/lib/types";
 
-type SommaireData = { titre: string; chapitres: { nom: string | null; articles: string[] }[] }[];
-type ArticleDetail = {
-  historique: Amendement[];
-  totalHistorique?: number;
-  influenceurs: { depute: Depute; part: number }[];
-  versionsTexte: VersionArticle[];
-};
-
-const numeroFromLabel = (label: string) => label.replace("Article ", "");
-
-export default function LoiPageClient({
-  projet,
-  sommaire,
-}: {
-  projet: ProjetLoi;
-  sommaire: SommaireData;
-}) {
+export default function LoiPageClient({ projet }: { projet: ProjetLoi }) {
   const loi = {
     numero: projet.numeroAffiche ?? projet.numero,
     type: projet.type,
@@ -50,30 +37,35 @@ export default function LoiPageClient({
     dossierUrl: projet.dossierUrl,
   };
   const parcours = projet.parcours;
-  const stats = projet.stats;
   const articles = projet.articles;
 
-  const [etapeActive, setEtapeActive] = useState<number | null>(null);
-  const [articleActifNumero, setArticleActifNumero] = useState(articles[0]?.numero ?? "");
+  // L'article ouvert par défaut arrive AVEC la page (détail inclus) : le texte,
+  // son origine et son évolution sont lisibles sans interaction préalable.
+  const [articleActifNumero, setArticleActifNumero] = useState(
+    projet.articleDefaut ?? articles[0]?.numero ?? ""
+  );
   const [amendementActif, setAmendementActif] = useState<Amendement | null>(null);
+  // Étape du parcours : filtre optionnel « lire le texte tel qu'il était à cette
+  // date ». `null` = dernière version publiée (l'état par défaut, le plus utile).
+  const [etapeActive, setEtapeActive] = useState<number | null>(null);
 
   const etape = etapeActive !== null ? parcours[etapeActive] : null;
-  const estVueSimple = etape?.acteur === "promulgation" || etape?.acteur === "depot";
   const article = articles.find((a) => a.numero === articleActifNumero);
 
-  // Historique + influenceurs de l'article actif : hors du payload initial
-  // (page loi allégée), chargés à la demande via GET /api/article et mis en
-  // cache par numéro d'article pour ne pas refetcher au re-clic.
-  const [details, setDetails] = useState<Record<string, ArticleDetail>>({});
-  const [detailLoading, setDetailLoading] = useState(false);
+  // Détail par article (historique, influenceurs, versions), mis en cache par
+  // numéro. Celui de l'article par défaut est déjà là — pas de requête au
+  // chargement ; les suivants arrivent via GET /api/article.
+  const [details, setDetails] = useState<Record<string, ArticleDetail>>(() =>
+    projet.articleDefaut && projet.detailDefaut
+      ? { [projet.articleDefaut]: projet.detailDefaut }
+      : {}
+  );
   const enrichi = article ? details[article.numero] : undefined;
 
   useEffect(() => {
-    // on ne charge le détail que lorsqu'on explore un article à une étape précise
-    if (!articleActifNumero || etape === null || estVueSimple) return;
+    if (!articleActifNumero) return;
     if (details[articleActifNumero]) return; // déjà en cache
     let annule = false;
-    setDetailLoading(true);
     fetch(
       `/api/article?dossier=${encodeURIComponent(projet.numero)}&numero=${encodeURIComponent(articleActifNumero)}`
     )
@@ -87,65 +79,57 @@ export default function LoiPageClient({
             ...prev,
             [articleActifNumero]: { historique: [], totalHistorique: 0, influenceurs: [], versionsTexte: [] },
           }));
-      })
-      .finally(() => {
-        if (!annule) setDetailLoading(false);
       });
     return () => {
       annule = true;
     };
-  }, [articleActifNumero, etape, estVueSimple, details, projet.numero]);
+  }, [articleActifNumero, details, projet.numero]);
 
-  const historique = enrichi?.historique ?? [];
+  // Le chargement se déduit de l'absence de détail en cache : pas d'état séparé à
+  // synchroniser (et pas de setState dans l'effet). Un échec de requête écrit un
+  // détail vide, donc l'attente ne peut pas rester bloquée.
+  const chargement = !enrichi;
+
+  // Mémoïsés : ces tableaux servent de dépendances aux useMemo ci-dessous, un
+  // nouveau littéral à chaque rendu les ferait tous recalculer.
+  const versions = useMemo(() => enrichi?.versionsTexte ?? [], [enrichi]);
+  const historique = useMemo(() => enrichi?.historique ?? [], [enrichi]);
   const totalHistorique = enrichi?.totalHistorique ?? historique.length;
   const influenceurs = enrichi?.influenceurs ?? [];
   const amendementAffiche = amendementActif ?? article?.amendementActuel;
 
-  // Texte de l'article TEL QU'À L'ÉTAPE sélectionnée : on prend la dernière
-  // version datée <= date de l'étape, et le diff introduit vs la version d'avant.
-  const articleAffiche = useMemo(() => {
-    const vers = enrichi?.versionsTexte;
-    if (!article || !etape?.dateIso || !vers?.length) return article;
+  // Version du texte à afficher : la dernière publiée par défaut, ou la dernière
+  // antérieure à l'étape sélectionnée quand l'utilisateur remonte dans le temps.
+  const indexVersion = useMemo(() => {
+    if (!versions.length) return -1;
+    if (!etape?.dateIso) return versions.length - 1;
     let idx = -1;
-    for (let i = 0; i < vers.length; i++) {
-      if (vers[i].dateIso && vers[i].dateIso <= etape.dateIso) idx = i;
+    for (let i = 0; i < versions.length; i++) {
+      if (versions[i].dateIso && versions[i].dateIso <= etape.dateIso) idx = i;
     }
-    if (idx < 0) return article; // aucune version connue à cette date
-    const cur = vers[idx];
-    // Texte de séance (marqueurs « (Non modifiée) ») : on l'affiche tel quel mais
-    // on NE le compare PAS (le diff ferait croire que tout a été supprimé).
-    if (texteEstPartiel(cur.alineas)) {
-      return { ...article, texte: cur.alineas.join("\n\n"), diffTexte: undefined, diffTexteInfo: undefined };
-    }
-    // On remonte jusqu'à la dernière version COMPLÈTE au contenu réellement
-    // différent : une navette re-« dépose » un texte identique (diff vide), et
-    // un texte de séance en marqueurs fausserait la comparaison.
-    const curKey = cur.alineas.join("\n");
-    let prev = null;
-    for (let i = idx - 1; i >= 0; i--) {
-      if (!texteEstPartiel(vers[i].alineas) && vers[i].alineas.join("\n") !== curKey) {
-        prev = vers[i];
-        break;
-      }
-    }
-    return {
-      ...article,
-      texte: cur.alineas.join("\n\n"),
-      diffTexte: prev ? diffLines(prev.alineas, cur.alineas) : undefined,
-      diffTexteInfo: prev ? { avant: prev.label, apres: cur.label } : undefined,
-    };
-  }, [article, etape, enrichi]);
+    return idx; // -1 : l'article n'existait pas encore à cette date
+  }, [versions, etape]);
 
-  const statutParArticle: Record<string, StatutAmendement> = Object.fromEntries(
-    articles.filter((a) => a.amendementActuel).map((a) => [a.numero, a.amendementActuel!.statut])
-  );
+  const articleAffiche = useMemo(() => {
+    if (!article) return article;
+    const v = indexVersion >= 0 ? versions[indexVersion] : undefined;
+    if (!v) return article;
+    return { ...article, texte: v.alineas.join("\n\n") };
+  }, [article, versions, indexVersion]);
+
+  // Blame par alinéa de la version affichée (voir lib/blame.ts pour les limites).
+  const blame = useMemo(() => {
+    if (indexVersion < 0 || !versions.length) return undefined;
+    if (texteEstPartiel(versions[indexVersion].alineas)) return undefined; // texte de séance : rien à attribuer
+    return calculeBlame({ versions, historique, indexAffiche: indexVersion });
+  }, [versions, historique, indexVersion]);
 
   function selectEtape(index: number) {
     setEtapeActive(index === -1 ? null : index);
     setAmendementActif(null);
   }
-  function selectArticle(label: string) {
-    setArticleActifNumero(numeroFromLabel(label));
+  function selectArticle(numero: string) {
+    setArticleActifNumero(numero);
     setAmendementActif(null);
   }
 
@@ -155,6 +139,7 @@ export default function LoiPageClient({
       <main className="mx-auto max-w-7xl space-y-5 p-6">
         <Fil items={[{ label: "Accueil", href: "/" }, { label: "Lois", href: "/lois" }, { label: loi.titre }]} />
         <LoiHeader loi={loi} />
+        <StatsCards stats={projet.stats} />
         <GuideLecture />
 
         {/* Deux colonnes (desktop) : le contenu à gauche, le parcours en timeline
@@ -167,67 +152,100 @@ export default function LoiPageClient({
           </aside>
 
           <div className="min-w-0 space-y-5 lg:order-1">
-        <StatsCards stats={stats} />
-
-        {(!etape || estVueSimple) && (
-          <TexteLoiComplet
-            titreLoi={loi.titre}
-            articles={articles}
-            sommaire={sommaire}
-          />
-        )}
-
-        {etape && !estVueSimple && article && (
-          <>
-            <div className="rounded-lg bg-bleu-100 px-4 py-2 text-sm text-bleu">
-              📍 Vous consultez le texte à l&apos;étape : <span className="font-medium">{etape.label}</span>
-              {etape.date && <> — {etape.date}</>}
-            </div>
-
-            <div className="border border-bordure bg-white p-5">
-              <h2 className="mb-4 titre text-xl text-encre">Explorer le texte de loi</h2>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-                <div className="md:col-span-1">
-                  <Sommaire
-                    sommaire={sommaire}
-                    articleActif={`Article ${articleActifNumero}`}
-                    statutParArticle={statutParArticle}
-                    onSelect={selectArticle}
-                  />
-                </div>
-                <div className="md:col-span-3">
-                  <ArticleTexte article={articleAffiche ?? article} amendement={amendementAffiche} />
-                </div>
-              </div>
-            </div>
-
-            {detailLoading && !enrichi ? (
-              <div className="border border-bordure bg-white p-6 text-sm text-gris">
-                Chargement de l&apos;historique des amendements…
-              </div>
+            {articles.length === 0 ? (
+              <section className="border border-bordure bg-white p-6">
+                <h2 className="titre text-xl text-encre">Texte de la loi</h2>
+                <p className="mt-2 text-sm text-gris">
+                  Aucun amendement n&apos;a été déposé sur ce texte : il n&apos;y a pas encore
+                  d&apos;article à explorer ici. Le texte intégral est consultable sur le dossier
+                  officiel de l&apos;Assemblée nationale (lien ci-dessus).
+                </p>
+              </section>
             ) : (
               <>
-                <HistoriqueAmendements
-                  historique={historique}
-                  total={totalHistorique}
-                  amendementActifNumero={amendementAffiche?.numero}
-                  etapeDate={etape.date}
-                  onSelect={setAmendementActif}
-                />
+                {etape && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-bleu-100 px-4 py-2 text-sm text-bleu">
+                    <span>
+                      Texte affiché à l&apos;étape <span className="font-medium">{etape.label}</span>
+                      {etape.date && <> — {etape.date}</>}
+                      {indexVersion < 0 && " (aucune version publiée à cette date)"}
+                    </span>
+                    <button type="button" onClick={() => selectEtape(-1)} className="shrink-0 underline">
+                      Revenir à la dernière version
+                    </button>
+                  </div>
+                )}
 
-                <Influenceurs influenceurs={influenceurs} />
+                {/* Sommaire + texte de l'article : le cœur de la page, visible d'emblée. */}
+                <section className="border border-bordure bg-white p-5">
+                  <h2 className="mb-4 titre text-xl text-encre">Explorer le texte de loi</h2>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-[13rem_minmax(0,1fr)]">
+                    <div className="md:border-r md:border-bordure md:pr-4">
+                      <Sommaire
+                        articles={articles}
+                        articleActif={articleActifNumero}
+                        onSelect={selectArticle}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      {article && (
+                        <ArticleTexte
+                          // remonter le composant remet ses replis à zéro quand
+                          // on change d'article ou de version affichée
+                          key={`${article.numero}-${indexVersion}`}
+                          article={articleAffiche ?? article}
+                          amendement={amendementAffiche}
+                          blame={blame}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {chargement ? (
+                  <p className="border border-bordure bg-white p-6 text-sm text-gris">
+                    Chargement de l&apos;historique de l&apos;article…
+                  </p>
+                ) : (
+                  <>
+                    <OrigineModification amendement={amendementAffiche} />
+                    {/* Le dispositif (prose officielle) vient APRÈS l'origine :
+                        on répond d'abord « qui, quand, adopté ? », ensuite « quoi ». */}
+                    {amendementAffiche && (
+                      <section className="border border-bordure bg-white px-5 pb-5">
+                        <DiffViewer amendement={amendementAffiche} />
+                      </section>
+                    )}
+                    <EvolutionTexte versions={versions} />
+                    <HistoriqueAmendements
+                      historique={historique}
+                      total={totalHistorique}
+                      amendementActifNumero={amendementAffiche?.numero}
+                      etapeDate={etape?.date}
+                      onSelect={setAmendementActif}
+                    />
+                    <Influenceurs
+                      influenceurs={influenceurs}
+                      adoptesSansAuteur={enrichi?.adoptesSansAuteur}
+                    />
+                  </>
+                )}
+
+                <TexteLoiComplet titreLoi={loi.titre} articles={articles} />
               </>
             )}
-          </>
-        )}
 
-        {projet.repartitionGroupes.length > 0 && (
-          <RepartitionGroupes groupes={projet.repartitionGroupes} />
-        )}
-        {projet.scrutins.length > 0 && (
-          <ScrutinsLoi scrutins={projet.scrutins} total={projet.scrutinsTotal} />
-        )}
-        <QuestionLoi dossierUid={projet.numero} />
+            {projet.repartitionGroupes.length > 0 && (
+              <RepartitionGroupes groupes={projet.repartitionGroupes} />
+            )}
+            {projet.scrutins.length > 0 && (
+              <ScrutinsLoi
+                scrutins={projet.scrutins}
+                total={projet.scrutinsTotal}
+                dossierUid={projet.numero}
+              />
+            )}
+            <QuestionLoi dossierUid={projet.numero} />
           </div>
         </div>
       </main>

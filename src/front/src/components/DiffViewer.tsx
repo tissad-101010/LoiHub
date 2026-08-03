@@ -1,5 +1,3 @@
-"use client";
-import { useState } from "react";
 import Link from "next/link";
 import { Amendement } from "@/lib/types";
 import { badgeStatutClass } from "@/lib/ui";
@@ -12,7 +10,7 @@ import { badgeStatutClass } from "@/lib/ui";
 // trompeur (ces fragments sont introuvables tels quels dans le texte affiché).
 // On affiche donc l'instruction officielle telle quelle, en mettant simplement
 // en évidence les termes entre guillemets. Le vrai diff (texte officiel entre
-// deux versions) est géré séparément par TexteDiff (« Évolution du texte »).
+// deux versions) est géré séparément par EvolutionTexte (« Évolution du texte »).
 
 // Met en valeur les termes cités « … » sans rien affirmer sur leur sens.
 function renderDispositif(texte: string) {
@@ -28,13 +26,12 @@ function renderDispositif(texte: string) {
 }
 
 export default function DiffViewer({ amendement }: { amendement?: Amendement }) {
-  const [voirPlus, setVoirPlus] = useState(false);
   if (!amendement) return null;
 
   return (
-    <div className="mt-4 border-t border-bordure pt-4">
+    <div className="pt-5">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-medium text-gris">
+        <h3 className="text-sm font-semibold text-encre">
           Ce que prévoit l&apos;amendement n°{amendement.numero}
         </h3>
         <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeStatutClass[amendement.statut]}`}>
@@ -53,26 +50,13 @@ export default function DiffViewer({ amendement }: { amendement?: Amendement }) 
         </p>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <button onClick={() => setVoirPlus((v) => !v)} className="text-xs text-bleu">
-          {voirPlus ? "Masquer les détails" : "Détails de l'amendement"}
-        </button>
-        {amendement.uid && (
-          <Link href={`/amendement/${encodeURIComponent(amendement.uid)}`} className="text-xs font-medium text-bleu hover:underline">
-            Voir la fiche de l&apos;amendement →
-          </Link>
-        )}
-      </div>
-
-      {voirPlus && (
-        <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gris sm:grid-cols-2">
-          <div>Amendement n°{amendement.numero}</div>
-          <div>Statut : {amendement.statut}</div>
-          <div>Auteur : {amendement.auteur.nom}</div>
-          <div>Groupe : {amendement.auteur.groupe || "—"}</div>
-          <div>Déposé le : {amendement.dateDepot || "—"}</div>
-          {amendement.dateAdoption && <div>Adopté le : {amendement.dateAdoption}</div>}
-        </div>
+      {amendement.uid && (
+        <Link
+          href={`/amendement/${encodeURIComponent(amendement.uid)}`}
+          className="mt-2 inline-block text-xs font-medium text-bleu hover:underline"
+        >
+          Voir la fiche de l&apos;amendement →
+        </Link>
       )}
     </div>
   );

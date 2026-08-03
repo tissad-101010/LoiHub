@@ -30,9 +30,44 @@ export interface Amendement {
   alinea?: string; // alinéa visé, champ officiel AN (ex. "Alinéa 13", "Après l'alinéa 7")
   dateDepot: string;
   dateAdoption?: string;
+  // Dates brutes (ISO), pour situer l'amendement entre deux versions du texte
+  // (cf. lib/blame.ts). Les champs ci-dessus sont déjà formatés pour l'affichage
+  // et ne sont donc pas comparables.
+  dateDepotIso?: string;
+  dateSortIso?: string;
   // Dispositif de l'amendement (prose officielle nettoyée) : l'instruction telle
   // que publiée par l'AN, affichée verbatim (pas de diff synthétisé, trompeur).
   dispositif?: string;
+  // Scrutin public portant précisément sur cet amendement, quand les députés ont
+  // voté dessus en séance (rattaché par dossier + numéro + auteur, cf.
+  // scripts/match_amendements.py). Alimente le résultat du vote de la carte
+  // « Origine de cette modification ».
+  scrutin?: Scrutin;
+}
+
+// Attribution d'un alinéa : quelle version du texte l'a introduit, et — quand la
+// correspondance est certaine — quel amendement adopté en est à l'origine.
+// C'est le « git blame » législatif : voir lib/blame.ts pour ses limites.
+export interface BlameAlinea {
+  // index de l'alinéa dans la version affichée (0-based)
+  index: number;
+  // libellé + date de la version qui a introduit ce texte (exact, issu de LawText)
+  versionLabel: string;
+  versionDateIso: string;
+  // vrai si l'alinéa était déjà là dans la version la plus ancienne connue
+  origine: boolean;
+  // amendement adopté visant explicitement cet alinéa, si un seul correspond
+  amendement?: Amendement;
+  // Pourquoi aucun amendement n'est nommé. Sert autant au diagnostic qu'à
+  // l'affichage : dire « deux amendements adoptés visent cet alinéa » est plus
+  // utile, et plus honnête, qu'un silence.
+  motif?: "origine" | "alinea-non-resolu" | "aucun-candidat" | "plusieurs-candidats";
+  // nb de candidats trouvés quand `motif` vaut "plusieurs-candidats"
+  candidats?: number;
+  // Numéro d'alinéa qu'un amendement devait citer pour être retenu, exprimé dans
+  // la numérotation de la version précédente. Exposé pour pouvoir vérifier
+  // l'attribution (cf. scripts/verifie-blame.ts).
+  numeroVise?: number;
 }
 
 export type ActeurEtape = "depot" | "commission" | "assemblee" | "senat" | "adoption" | "promulgation";
@@ -57,6 +92,8 @@ export interface Article {
   numero: string;
   titre: string;
   texte: string;
+  // Nombre d'amendements déposés sur cet article (tous sorts confondus).
+  nbAmendements: number;
   amendementActuel?: Amendement;
   historique: Amendement[];
   influenceurs: { depute: Depute; part: number }[];
@@ -98,6 +135,24 @@ export interface ProjetLoi {
   };
   repartitionGroupes: GroupeStat[];
   articles: Article[];
+  // Détail (historique, influenceurs, versions) de l'article ouvert par défaut,
+  // servi AVEC la page : le diff et le blame sont visibles à l'arrivée, sans
+  // attendre un aller-retour client. Les autres articles restent chargés à la
+  // demande via GET /api/article.
+  articleDefaut?: string;
+  detailDefaut?: ArticleDetail;
+}
+
+// Charge utile de GET /api/article (et du détail servi avec la page loi).
+export interface ArticleDetail {
+  historique: Amendement[];
+  totalHistorique: number;
+  influenceurs: { depute: Depute; part: number }[];
+  versionsTexte: VersionArticle[];
+  // Amendements adoptés sur l'article dont l'auteur n'est pas identifiable dans
+  // l'open data (référence XML nil). Exclus du classement des influenceurs, mais
+  // signalés pour que la somme des parts reste explicable.
+  adoptesSansAuteur?: number;
 }
 
 // Répartition des amendements d'un dossier par groupe politique (auteurs identifiés).
@@ -134,7 +189,12 @@ export interface LoiResume {
   amendements: number;
   deputesImpliques: number;
   derniereActualite: string; // date du dernier évènement connu sur ce dossier
-  etape: { label: string; acteur: ActeurEtape }; // étape courante du parcours -> couleur liée à ParcoursHorizontal
+  etape: { label: string; acteur: ActeurEtape }; // étape courante du parcours -> couleur liée au parcours
+  // Nb de versions du texte articulé publiées par l'AN pour ce dossier. 0 = le
+  // texte n'est pas disponible en open data : la lecture article par article, le
+  // diff et le blame ne sont PAS possibles. À signaler plutôt qu'à laisser
+  // découvrir après le clic.
+  versionsTexte: number;
 }
 
 // Un texte (dossier) déposé/initié par un député, pour sa fiche.

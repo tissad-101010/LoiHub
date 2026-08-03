@@ -46,7 +46,16 @@ function LigneInfluenceur({ i, rang }: { i: Article["influenceurs"][number]; ran
   );
 }
 
-export default function Influenceurs({ influenceurs }: { influenceurs: Article["influenceurs"] }) {
+export default function Influenceurs({
+  influenceurs,
+  adoptesSansAuteur,
+}: {
+  influenceurs: Article["influenceurs"];
+  // Amendements adoptés dont l'auteur n'est pas identifiable dans l'open data :
+  // exclus du classement (on ne range pas « Auteur inconnu » à la 2e place),
+  // mais signalés pour que le lecteur sache que le total n'atteint pas 100 %.
+  adoptesSansAuteur?: number;
+}) {
   const [voirTout, setVoirTout] = useState(false);
   const apercu = influenceurs.slice(0, APERCU_MAX);
   const reste = influenceurs.length - apercu.length;
@@ -79,6 +88,16 @@ export default function Influenceurs({ influenceurs }: { influenceurs: Article["
           {reste > 0 && <div className="mt-2 text-xs text-gris">+{reste} autres députés</div>}
         </>
       )}
+
+      {adoptesSansAuteur ? (
+        <p className="mt-3 border-t border-bordure pt-2 text-xs text-gris">
+          {adoptesSansAuteur} amendement{adoptesSansAuteur > 1 ? "s" : ""} adopté
+          {adoptesSansAuteur > 1 ? "s" : ""} sur cet article {adoptesSansAuteur > 1 ? "n'ont" : "n'a"} pas
+          d&apos;auteur identifiable dans les données de l&apos;Assemblée nationale (souvent un
+          amendement du Gouvernement ou de la commission) : {adoptesSansAuteur > 1 ? "ils sont" : "il est"}{" "}
+          exclu{adoptesSansAuteur > 1 ? "s" : ""} de ce classement.
+        </p>
+      ) : null}
 
       <Modal open={voirTout} onClose={() => setVoirTout(false)}>
         <h2 className="mb-4 titre text-xl text-encre">Tous les contributeurs de cet article</h2>

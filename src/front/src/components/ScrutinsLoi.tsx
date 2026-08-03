@@ -1,22 +1,20 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import type { Scrutin } from "@/lib/types";
+import BarreVote from "./BarreVote";
 
 const APERCU = 5;
 
-function BarreVote({ s }: { s: Scrutin }) {
-  const total = s.pour + s.contre + s.abstention || 1;
-  const seg = (n: number) => `${(n / total) * 100}%`;
-  return (
-    <div className="flex h-2 w-full overflow-hidden rounded-full bg-fond-alt">
-      <div style={{ width: seg(s.pour) }} className="bg-green-500" title={`Pour : ${s.pour}`} />
-      <div style={{ width: seg(s.contre) }} className="bg-red-500" title={`Contre : ${s.contre}`} />
-      <div style={{ width: seg(s.abstention) }} className="bg-gray-400" title={`Abstention : ${s.abstention}`} />
-    </div>
-  );
-}
-
-export default function ScrutinsLoi({ scrutins, total }: { scrutins: Scrutin[]; total?: number }) {
+export default function ScrutinsLoi({
+  scrutins,
+  total,
+  dossierUid,
+}: {
+  scrutins: Scrutin[];
+  total?: number;
+  dossierUid?: string;
+}) {
   const [tout, setTout] = useState(false);
   if (!scrutins.length) return null;
   const visibles = tout ? scrutins : scrutins.slice(0, APERCU);
@@ -40,10 +38,13 @@ export default function ScrutinsLoi({ scrutins, total }: { scrutins: Scrutin[]; 
 
       <ul className="space-y-3">
         {visibles.map((s) => (
-          <li key={s.uid} className="border border-bordure p-3">
+          <li key={s.uid} className="border border-bordure p-3 transition hover:border-bleu">
             <div className="mb-1.5 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm text-encre">{s.titre}</div>
+                {/* la fiche du scrutin donne le détail nominatif par groupe */}
+                <Link href={`/vote/${encodeURIComponent(s.uid)}`} className="text-sm text-encre hover:text-bleu hover:underline">
+                  {s.titre}
+                </Link>
                 <div className="mt-0.5 text-xs text-gris">
                   {s.date}
                   {s.numero && ` · scrutin n°${s.numero}`}
@@ -58,21 +59,23 @@ export default function ScrutinsLoi({ scrutins, total }: { scrutins: Scrutin[]; 
                 {s.adopte ? "Adopté" : "Rejeté"}
               </span>
             </div>
-            <BarreVote s={s} />
-            <div className="mt-1.5 flex gap-4 text-xs text-gris">
-              <span><span className="font-medium text-green-700">{s.pour}</span> pour</span>
-              <span><span className="font-medium text-red-700">{s.contre}</span> contre</span>
-              <span><span className="font-medium text-gris">{s.abstention}</span> abstention</span>
-            </div>
+            <BarreVote scrutin={s} legende />
           </li>
         ))}
       </ul>
 
-      {scrutins.length > APERCU && (
-        <button onClick={() => setTout((v) => !v)} className="mt-3 text-xs text-bleu">
-          {tout ? "Voir moins" : tronque ? `Voir les ${scrutins.length} scrutins les plus récents` : `Voir les ${scrutins.length} scrutins`}
-        </button>
-      )}
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        {scrutins.length > APERCU && (
+          <button onClick={() => setTout((v) => !v)} className="text-xs text-bleu">
+            {tout ? "Voir moins" : tronque ? `Voir les ${scrutins.length} scrutins les plus récents` : `Voir les ${scrutins.length} scrutins`}
+          </button>
+        )}
+        {dossierUid && tronque && (
+          <Link href={`/votes?dossier=${encodeURIComponent(dossierUid)}`} className="text-xs font-medium text-bleu hover:underline">
+            Parcourir les {totalReel.toLocaleString("fr-FR")} scrutins de ce texte →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

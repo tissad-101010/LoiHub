@@ -270,19 +270,17 @@ export default function TexteDiff({
   const blocs = toutMontrer ? [{ type: "rows", rows } as Bloc] : replier(rows);
 
   return (
-    <div className="mt-4 border-t border-bordure pt-4">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-gris">Évolution du texte de l&apos;article</h3>
-        <button onClick={() => setToutMontrer((v) => !v)} className="text-xs text-bleu">
+    <div className="mt-4">
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs text-gris">
+          <span className="rounded-sm bg-red-200 px-1 text-red-900">retiré</span>{" "}
+          <span className="rounded-sm bg-green-200 px-1 text-green-900">ajouté</span> · seuls les mots
+          modifiés sont surlignés. Source : Assemblée nationale.
+        </p>
+        <button onClick={() => setToutMontrer((v) => !v)} className="shrink-0 text-xs text-bleu">
           {toutMontrer ? "Masquer les passages inchangés" : "Afficher tout le texte"}
         </button>
       </div>
-      <p className="mb-3 text-xs text-gris">
-        Comparaison du texte officiel entre deux versions —{" "}
-        <span className="rounded-sm bg-red-200 px-1 text-red-900">retiré</span>{" "}
-        <span className="rounded-sm bg-green-200 px-1 text-green-900">ajouté</span> · seuls les mots modifiés
-        sont surlignés. Source : Assemblée nationale.
-      </p>
 
       {/* défilement horizontal sur petits écrans (les 2 colonnes ne s'écrasent pas) */}
       <div className="overflow-x-auto rounded-lg border border-bordure">
@@ -291,7 +289,9 @@ export default function TexteDiff({
           <div className="border-r border-bordure px-3 py-2 text-gris">Avant — {info?.avant ?? "version initiale"}</div>
           <div className="px-3 py-2 text-gris">Après — {info?.apres ?? "version finale"}</div>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto font-mono text-xs leading-relaxed">
+        {/* overscroll-contain : arrivé en bout de liste, la molette rend la main
+            à la page au lieu de rester piégée dans le diff. */}
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain font-mono text-xs leading-relaxed">
           {blocs.map((b, bi) =>
             b.type === "gap" ? (
               <button

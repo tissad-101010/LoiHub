@@ -10,6 +10,7 @@
 //  - votes / heures de débat -> datasets non importés -> 0.
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { diffLines } from "./diff";
 import { texteEstPartiel } from "./ui";
@@ -17,6 +18,7 @@ import { getInfoParlementaireOfficielle, photoParlementaireUrl } from "./parleme
 import type {
   ProjetLoi,
   Article,
+  ArticleDetail,
   Amendement,
   EtapeParcours,
   ActeurEtape,
@@ -30,11 +32,49 @@ import type {
   IconeThematique,
   VersionArticle,
   GroupeStat,
+  Scrutin,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* Requêtes filtrées                                                   */
+/* ------------------------------------------------------------------ */
+
+// Les pages de registre (lois, amendements, scrutins) composent leur clause WHERE
+// selon les filtres actifs. On l'assemble à la main avec des placeholders
+// numérotés plutôt qu'avec `Prisma.sql` : dans un template balisé `$queryRaw`,
+// un fragment Sql imbriqué part comme paramètre lié et Postgres répond
+// « syntax error at or near $2 ».
+//
+// Sûreté : aucune donnée utilisateur n'entre dans la chaîne SQL. Seuls des
+// fragments écrits ici y figurent ; les valeurs sont enregistrées par `p()` et
+// passées séparément à `$queryRawUnsafe`, qui les lie comme n'importe quel
+// paramètre. C'est le `Unsafe` du nom qui porte sur la chaîne, pas sur les
+// valeurs.
+class Filtres {
+  private valeurs: unknown[] = [];
+
+  /** Enregistre une valeur et renvoie son placeholder ($1, $2, …). */
+  p(valeur: unknown): string {
+    this.valeurs.push(valeur);
+    return `$${this.valeurs.length}`;
+  }
+
+  get params(): unknown[] {
+    return this.valeurs;
+  }
+
+  /** Placeholder suivant, pour les paramètres ajoutés après le WHERE (offset/limit). */
+  suivant(decalage = 0): string {
+    return `$${this.valeurs.length + 1 + decalage}`;
+  }
+}
+
+const clauseWhere = (conditions: string[]) =>
+  conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
 // L'API AN encode souvent "un objet OU un tableau" -> on normalise en tableau.
 function asArray<T>(x: T | T[] | null | undefined): T[] {
@@ -311,13 +351,76 @@ function mapAmendement(a: AmendmentRow, deputes: DeputeMap, dossierTermine = fal
     alinea: a.alinea ?? undefined,
     dateDepot: formatDate(a.dateDepot?.toISOString()),
     dateAdoption: a.status === "ACCEPTED" ? formatDate(a.dateSort?.toISOString()) : undefined,
+    dateDepotIso: a.dateDepot?.toISOString(),
+    dateSortIso: a.dateSort?.toISOString(),
     dispositif: dispositifFromContent(a.content),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrutins publics                                                    */
+/* ------------------------------------------------------------------ */
+
+const SCRUTIN_SELECT = {
+  uid: true,
+  numero: true,
+  dateScrutin: true,
+  titre: true,
+  sortCode: true,
+  sortLibelle: true,
+  pour: true,
+  contre: true,
+  abstention: true,
+} as const;
+
+type ScrutinRow = {
+  uid: string;
+  numero: string | null;
+  dateScrutin: Date | null;
+  titre: string | null;
+  sortCode: string | null;
+  sortLibelle: string | null;
+  pour: number | null;
+  contre: number | null;
+  abstention: number | null;
+};
+
+function mapScrutin(s: ScrutinRow): Scrutin {
+  return {
+    uid: s.uid,
+    numero: s.numero ?? undefined,
+    date: formatDate(s.dateScrutin?.toISOString()),
+    titre: s.titre ?? "Scrutin public",
+    adopte: (s.sortCode ?? "").toLowerCase().includes("adopt"),
+    sortLibelle: s.sortLibelle ?? undefined,
+    pour: s.pour ?? 0,
+    contre: s.contre ?? 0,
+    abstention: s.abstention ?? 0,
+  };
+}
+
+// Scrutins indexés par uid d'amendement (`Scrutin.amendementUid`, reconstruit par
+// scripts/match_amendements.py) : un seul aller-retour pour tout un historique.
+async function scrutinsParAmendement(uids: string[]): Promise<Map<string, Scrutin>> {
+  if (!uids.length) return new Map();
+  const rows = await prisma.scrutin.findMany({
+    where: { amendementUid: { in: uids } },
+    orderBy: { dateScrutin: "asc" },
+    select: { ...SCRUTIN_SELECT, amendementUid: true },
+  });
+  const map = new Map<string, Scrutin>();
+  for (const r of rows) {
+    if (r.amendementUid && !map.has(r.amendementUid)) map.set(r.amendementUid, mapScrutin(r));
+  }
+  return map;
 }
 
 // bornes pour garder un payload raisonnable côté client
 const MAX_ARTICLES = 60;
 const MAX_HISTO = 200;
+// Historique de l'article ouvert par défaut : servi AVEC la page loi, donc borné
+// plus bas que MAX_HISTO (le reste arrive via /api/article au changement d'article).
+const MAX_HISTO_DEFAUT = 60;
 
 // désignation d'article AN ("ART. 12", "ART. UNIQUE", "ART. PRELIM.") -> numéro court
 function articleNumero(designation: string | null): string {
@@ -436,6 +539,183 @@ export const getStatistiques = cache(async function getStatistiques(): Promise<{
   };
 });
 
+/* ------------------------------------------------------------------ */
+/* Extrait de démonstration (bandeau d'accueil)                        */
+/* ------------------------------------------------------------------ */
+
+// Ce que la page d'accueil montre au lieu de le promettre : un vrai changement de
+// texte, sur une vraie loi, avec l'amendement qui l'a produit et son auteur.
+// Rien n'est écrit en dur — tout est relu en base à chaque revalidation.
+export interface ExtraitVitrine {
+  dossierUid: string;
+  dossierTitre: string;
+  articleNumero: string;
+  diff: DiffLigne[];
+  avant: string;
+  apres: string;
+  amendement?: Amendement;
+  // Exposé sommaire de l'auteur : le « pourquoi » de sa main, pas une paraphrase.
+  motif?: string;
+}
+
+// Nb de passages modifiés recherché : assez pour être parlant, assez peu pour
+// tenir dans un bandeau sans ascenseur.
+const VITRINE_CHANGEMENTS_MAX = 4;
+// Nb d'articles pour lesquels on accepte de chercher un amendement par dossier
+// (chaque recherche est une requête) — borne le coût de la construction.
+const VITRINE_ESSAIS_PAR_DOSSIER = 6;
+
+// Deux versions d'un « même » article partagent-elles assez de texte pour que la
+// comparaison veuille dire quelque chose ?
+//
+// C'est un garde-fou nécessaire : la numérotation des articles change d'un texte
+// à l'autre au fil de la navette. L'« article 54 » du texte déposé n'est pas
+// forcément l'« article 54 » du texte adopté — les comparer produit un diff qui
+// oppose deux sujets sans rapport, ce qui est pire que pas de diff du tout. Un
+// article qui a réellement évolué conserve, lui, des alinéas identiques.
+export function comparaisonPlausible(diff: DiffLigne[]): boolean {
+  return diff.some((l) => l.type === "inchange");
+}
+
+async function chercheExtraitVitrine(): Promise<ExtraitVitrine | null> {
+  // Dossiers dont l'AN a publié le texte articulé en au moins deux versions
+  // (seuls ceux-là permettent une comparaison), les plus amendés d'abord.
+  const candidats = await prisma.$queryRaw<{ uid: string; id: string; titre: string | null }[]>`
+    SELECT d."uid" AS uid, d."id" AS id, d."title" AS titre
+    FROM "Dossier" d
+    JOIN (
+      SELECT "dossierUid", COUNT(*) AS versions
+      FROM "LawText" WHERE "dossierUid" IS NOT NULL
+      GROUP BY 1 HAVING COUNT(*) >= 2
+    ) lt ON lt."dossierUid" = d."uid"
+    LEFT JOIN "Law" l ON l."dossierId" = d."id"
+    LEFT JOIN "Amendment" a ON a."lawId" = l."id"
+    WHERE d."title" IS NOT NULL
+    GROUP BY d."uid", d."id", d."title"
+    ORDER BY COUNT(a."id") DESC
+    LIMIT 5
+  `;
+
+  for (const cand of candidats) {
+    const lawTexts = await prisma.lawText.findMany({
+      where: { dossierUid: cand.uid },
+      orderBy: { ordre: "asc" },
+      select: { label: true, articles: true, date: true },
+    });
+    const versions = lawTexts
+      .map((v) => ({
+        label: v.label,
+        date: v.date ?? "",
+        byNum: indexByNum(v.articles as Record<string, string[]>),
+      }))
+      .filter((v) => v.byNum.size > 0);
+    if (versions.length < 2) continue;
+
+    // Comparaison première ↔ dernière version COMPLÈTE de chaque article. On ne
+    // garde que les évolutions plausibles (au moins un alinéa en commun, cf.
+    // comparaisonPlausible) et compactes, les plus resserrées d'abord.
+    const pistes: { numero: string; diff: DiffLigne[]; avant: string; apres: string; n: number }[] = [];
+    for (const numero of versions[0].byNum.keys()) {
+      const avecArticle = versions.filter(
+        (v) => v.byNum.has(numero) && !texteEstPartiel(v.byNum.get(numero))
+      );
+      if (avecArticle.length < 2) continue;
+      const a = avecArticle[0];
+      const b = avecArticle[avecArticle.length - 1];
+      const ta = a.byNum.get(numero)!;
+      const tb = b.byNum.get(numero)!;
+      if (ta.join("\n") === tb.join("\n")) continue;
+      const diff = diffLines(ta, tb);
+      const n = diff.filter((l) => l.type !== "inchange").length;
+      if (n === 0 || n > VITRINE_CHANGEMENTS_MAX) continue;
+      if (!comparaisonPlausible(diff)) continue; // articles renumérotés : hors sujet
+      pistes.push({
+        numero,
+        diff,
+        avant: `${a.label}${a.date ? ` (${formatDate(a.date)})` : ""}`,
+        apres: `${b.label}${b.date ? ` (${formatDate(b.date)})` : ""}`,
+        n,
+      });
+    }
+    pistes.sort((x, y) => x.n - y.n);
+
+    // Un extrait n'a d'intérêt que s'il peut être CRÉDITÉ : on exige un
+    // amendement adopté avec un auteur identifié. On essaie donc plusieurs
+    // articles au lieu de s'arrêter au premier diff trouvé.
+    for (const piste of pistes.slice(0, VITRINE_ESSAIS_PAR_DOSSIER)) {
+      const amdts = await prisma.$queryRaw<
+        {
+          uid: string;
+          numeroLong: string | null;
+          numeroOrdreDepot: string | null;
+          alinea: string | null;
+          status: string;
+          sort: string | null;
+          dateDepot: Date | null;
+          dateSort: Date | null;
+          authorId: string | null;
+          exposeSommaire: string | null;
+        }[]
+      >`
+        SELECT a."uid", a."numeroLong", a."numeroOrdreDepot", a."alinea", a."status", a."sort",
+               a."dateDepot", a."dateSort", a."authorId", a."exposeSommaire"
+        FROM "Amendment" a
+        JOIN "Law" l ON a."lawId" = l."id"
+        JOIN "Deputy" dep ON dep."uid" = a."authorId"
+        WHERE l."dossierId" = ${cand.id}
+          AND a."status" = 'ACCEPTED'
+          AND a."article" ILIKE 'ART%'
+          AND regexp_replace(a."article", '\\D', '', 'g') = ${piste.numero}
+        ORDER BY (a."exposeSommaire" IS NOT NULL) DESC, a."dateSort" DESC NULLS LAST
+        LIMIT 1
+      `;
+      const choisi = amdts[0];
+      if (!choisi?.authorId) continue;
+
+      const dep = await prisma.deputy.findUnique({
+        where: { uid: choisi.authorId },
+        select: { uid: true, name: true, group: true },
+      });
+      const deputes: DeputeMap = new Map(
+        dep
+          ? [
+              [
+                dep.uid as string,
+                {
+                  name: dep.name,
+                  group: dep.group,
+                  photoUrl: photoParlementaireUrl(dep.uid as string),
+                  institution: /^PA\d+$/.test(dep.uid as string) ? ("assemblee" as const) : undefined,
+                },
+              ],
+            ]
+          : []
+      );
+      const amendement = mapAmendement({ ...choisi, article: null }, deputes, true);
+      amendement.scrutin = (await scrutinsParAmendement([choisi.uid])).get(choisi.uid);
+      const expose = stripHtml(choisi.exposeSommaire);
+
+      return {
+        dossierUid: cand.uid,
+        dossierTitre: cand.titre ?? "Dossier législatif",
+        articleNumero: piste.numero,
+        diff: piste.diff,
+        avant: piste.avant,
+        apres: piste.apres,
+        amendement,
+        motif: expose ? (expose.length > 320 ? `${expose.slice(0, 320).trimEnd()}…` : expose) : undefined,
+      };
+    }
+  }
+  return null;
+}
+
+// Mis en cache une heure : la recherche parcourt les textes articulés, inutile de
+// la refaire à chaque visite (le dump ne bouge pas en cours de journée).
+export const getExtraitVitrine = unstable_cache(chercheExtraitVitrine, ["extrait-vitrine"], {
+  revalidate: 3600,
+});
+
 // Mémoïsé par requête (React cache) : la page loi ET son generateMetadata
 // l'appellent — on ne veut pas payer deux fois cette reconstruction lourde.
 export const getProjetLoi = cache(async function getProjetLoi(
@@ -531,7 +811,11 @@ export const getProjetLoi = cache(async function getProjetLoi(
     const a = premiere.byNum.get(num)!;
     const b = derniere.byNum.get(num)!;
     if (a.join("\n") === b.join("\n")) return null; // pas de changement
-    return { diff: diffLines(a, b), avant: premiere.label, apres: derniere.label };
+    const diff = diffLines(a, b);
+    // Aucun alinéa en commun : très probablement deux articles distincts portant
+    // le même numéro (renumérotation en navette) -> ce n'est pas une évolution.
+    if (!comparaisonPlausible(diff)) return null;
+    return { diff, avant: premiere.label, apres: derniere.label };
   }
 
   // vrai texte de l'article : dernière version COMPLÈTE (consolidée) qui le
@@ -574,6 +858,7 @@ export const getProjetLoi = cache(async function getProjetLoi(
       return {
         numero,
         titre: numero && numero !== "—" ? `Article ${numero}` : "Article",
+        nbAmendements: rows.length,
         // vrai texte de l'article si on l'a parsé, sinon note courte et claire
         texte:
           texteArticle(numero) ??
@@ -655,23 +940,39 @@ export const getProjetLoi = cache(async function getProjetLoi(
       where: { dossierUid },
       orderBy: { dateScrutin: "desc" },
       take: MAX_SCRUTINS,
-      select: {
-        uid: true, numero: true, dateScrutin: true, titre: true,
-        sortCode: true, sortLibelle: true, pour: true, contre: true, abstention: true,
-      },
+      select: SCRUTIN_SELECT,
     })
   ).reverse(); // ré-affichés du plus ancien au plus récent
-  const scrutins = scrutinsRows.map((s) => ({
-    uid: s.uid,
-    numero: s.numero ?? undefined,
-    date: formatDate(s.dateScrutin?.toISOString()),
-    titre: s.titre ?? "Scrutin public",
-    adopte: (s.sortCode ?? "").toLowerCase().includes("adopt"),
-    sortLibelle: s.sortLibelle ?? undefined,
-    pour: s.pour ?? 0,
-    contre: s.contre ?? 0,
-    abstention: s.abstention ?? 0,
-  }));
+  const scrutins = scrutinsRows.map(mapScrutin);
+
+  // ---- Article ouvert par défaut -------------------------------------------
+  // La page loi doit montrer le cœur du projet (diff, origine, historique) DÈS
+  // l'arrivée, sans exiger un clic sur le parcours. On ouvre donc l'article le
+  // plus « démonstratif » : en priorité un article dont on sait afficher une
+  // évolution de texte ET l'amendement qui l'a modifié, à défaut le plus amendé.
+  const score = (a: Article) =>
+    (a.diffTexte?.length ? 4 : 0) + // une évolution de texte à montrer
+    (a.amendementActuel ? 2 : 0) + // un amendement identifié à créditer
+    (a.texte.split(/\n+/).filter(Boolean).length > 1 ? 1 : 0); // plus d'un alinéa à lire
+  const articleDefaut = [...articles].sort((x, y) => {
+    const d = score(y) - score(x);
+    if (d !== 0) return d;
+    return (parArticle.get(y.numero)?.length ?? 0) - (parArticle.get(x.numero)?.length ?? 0);
+  })[0]?.numero;
+
+  let detailDefaut: ArticleDetail | undefined;
+  if (articleDefaut) {
+    const versionsDefaut: VersionArticle[] = versionsIdx
+      .map((v) => ({ label: v.label, dateIso: v.dateIso, alineas: v.byNum.get(articleDefaut) }))
+      .filter((v): v is VersionArticle => !!v.alineas);
+    detailDefaut = await buildArticleDetail({
+      rows: parArticle.get(articleDefaut) ?? [],
+      deputes,
+      versionsTexte: versionsDefaut,
+      termine,
+      maxHisto: MAX_HISTO_DEFAUT,
+    });
+  }
 
   const premiereDate = parcours.find((e) => e.date)?.date ?? "";
   const derniereEtape = [...parcours].reverse().find((e) => e.date);
@@ -738,6 +1039,8 @@ export const getProjetLoi = cache(async function getProjetLoi(
     scrutins,
     scrutinsTotal,
     articles,
+    articleDefaut,
+    detailDefaut,
   };
 });
 
@@ -1034,18 +1337,88 @@ export const getDepute = cache(async function getDepute(
   };
 });
 
+/* ------------------------------------------------------------------ */
+/* Détail d'un article (historique, influenceurs, versions)            */
+/* ------------------------------------------------------------------ */
+
+// Construit le détail d'un article à partir de lignes d'amendements DÉJÀ chargées.
+// Partagé par getProjetLoi (article ouvert par défaut, servi avec la page) et
+// getArticleDetail (GET /api/article, au changement d'article).
+async function buildArticleDetail({
+  rows,
+  deputes,
+  versionsTexte,
+  termine,
+  maxHisto,
+}: {
+  rows: AmendmentRow[]; // amendements du SEUL article concerné, par date croissante
+  deputes: DeputeMap;
+  versionsTexte: VersionArticle[];
+  termine: boolean;
+  maxHisto: number;
+}): Promise<ArticleDetail> {
+  if (!rows.length) return { historique: [], totalHistorique: 0, influenceurs: [], versionsTexte };
+
+  // Dispositif (content) + scrutin chargés UNIQUEMENT pour les amendements
+  // réellement affichés, pas pour tous ceux du dossier.
+  const histoRows = rows.slice(0, maxHisto);
+  const histoUids = histoRows.map((r) => r.uid).filter(Boolean) as string[];
+  const [contenus, scrutins] = await Promise.all([
+    histoUids.length
+      ? prisma.amendment.findMany({
+          where: { uid: { in: histoUids } },
+          select: { uid: true, content: true },
+        })
+      : Promise.resolve([] as { uid: string; content: string | null }[]),
+    scrutinsParAmendement(histoUids),
+  ]);
+  const contentByUid = new Map(contenus.map((c) => [c.uid, c.content]));
+
+  const historique = histoRows.map((r) => {
+    const a = mapAmendement({ ...r, content: r.uid ? contentByUid.get(r.uid) : null }, deputes, termine);
+    if (r.uid) a.scrutin = scrutins.get(r.uid);
+    return a;
+  });
+
+  // influenceurs = part des auteurs parmi les amendements adoptés. Les auteurs
+  // non identifiables dans l'open data (référence XML nil) sont exclus du
+  // classement plutôt qu'affichés comme « Auteur inconnu » : un classement doit
+  // nommer quelqu'un. Leur part est restituée à part par le composant.
+  const adoptes = rows.filter((r) => r.status === "ACCEPTED");
+  const compteur = new Map<string, number>();
+  let adoptesSansAuteur = 0;
+  for (const r of adoptes) {
+    if (!refPropre(r.authorId)) {
+      adoptesSansAuteur += 1;
+      continue;
+    }
+    compteur.set(r.authorId, (compteur.get(r.authorId) ?? 0) + 1);
+  }
+  const totalAdoptes = adoptes.length || 1;
+  const influenceurs = [...compteur.entries()]
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 8)
+    .map(([id, n]) => ({
+      depute: deputeFromId(id, deputes),
+      part: Math.round((100 * n) / totalAdoptes),
+    }));
+
+  return {
+    historique,
+    totalHistorique: rows.length,
+    influenceurs,
+    versionsTexte,
+    ...(adoptesSansAuteur > 0 ? { adoptesSansAuteur } : {}),
+  };
+}
+
 // Détail d'UN article, chargé à la demande (l'historique + les influenceurs ne
 // sont pas dans le payload initial de getProjetLoi -> gros gain de poids de page).
 // On ne résout les auteurs (y compris fallback réseau) que pour cet article.
 export async function getArticleDetail(
   dossierUid: string,
   numero: string
-): Promise<{
-  historique: Amendement[];
-  totalHistorique: number; // nb réel d'amendements sur l'article (≥ historique.length, qui est plafonné)
-  influenceurs: { depute: Depute; part: number }[];
-  versionsTexte: VersionArticle[];
-} | null> {
+): Promise<ArticleDetail | null> {
   const dossier = await prisma.dossier.findUnique({
     where: { uid: dossierUid },
     select: { id: true, raw: true },
@@ -1127,42 +1500,7 @@ export async function getArticleDetail(
     });
   }
 
-  // Dispositif (content) chargé UNIQUEMENT pour les amendements réellement
-  // affichés (≤ MAX_HISTO), pas pour tous ceux du dossier -> permet un diff
-  // rouge/vert quand la formulation est reconnue, sinon un repli lisible.
-  const histoRows = rows.slice(0, MAX_HISTO);
-  const histoUids = histoRows.map((r) => r.uid).filter(Boolean) as string[];
-  const contentByUid = histoUids.length
-    ? new Map(
-        (
-          await prisma.amendment.findMany({
-            where: { uid: { in: histoUids } },
-            select: { uid: true, content: true },
-          })
-        ).map((c) => [c.uid, c.content])
-      )
-    : new Map<string, string | null>();
-  const historique = histoRows.map((r) =>
-    mapAmendement({ ...r, content: r.uid ? contentByUid.get(r.uid) : null }, deputes, termine)
-  );
-
-  // influenceurs = part des auteurs parmi les amendements adoptés
-  const adoptes = rows.filter((r) => r.status === "ACCEPTED");
-  const compteur = new Map<string, number>();
-  for (const r of adoptes) {
-    const k = r.authorId ?? "?";
-    compteur.set(k, (compteur.get(k) ?? 0) + 1);
-  }
-  const totalAdoptes = adoptes.length || 1;
-  const influenceurs = [...compteur.entries()]
-    .sort((x, y) => y[1] - x[1])
-    .slice(0, 8)
-    .map(([id, n]) => ({
-      depute: deputeFromId(id, deputes),
-      part: Math.round((100 * n) / totalAdoptes),
-    }));
-
-  return { historique, totalHistorique: rows.length, influenceurs, versionsTexte };
+  return buildArticleDetail({ rows, deputes, versionsTexte, termine, maxHisto: MAX_HISTO });
 }
 
 // Annuaire des députés (législature 17) avec leur volume d'amendements.
@@ -1267,24 +1605,9 @@ export const getAmendement = cache(async function getAmendement(
   const scrutinRow = await prisma.scrutin.findFirst({
     where: { amendementUid: uid },
     orderBy: { dateScrutin: "asc" },
-    select: {
-      uid: true, numero: true, dateScrutin: true, titre: true,
-      sortCode: true, sortLibelle: true, pour: true, contre: true, abstention: true,
-    },
+    select: SCRUTIN_SELECT,
   });
-  const scrutin = scrutinRow
-    ? {
-        uid: scrutinRow.uid,
-        numero: scrutinRow.numero ?? undefined,
-        date: formatDate(scrutinRow.dateScrutin?.toISOString()),
-        titre: scrutinRow.titre ?? "Scrutin public",
-        adopte: (scrutinRow.sortCode ?? "").toLowerCase().includes("adopt"),
-        sortLibelle: scrutinRow.sortLibelle ?? undefined,
-        pour: scrutinRow.pour ?? 0,
-        contre: scrutinRow.contre ?? 0,
-        abstention: scrutinRow.abstention ?? 0,
-      }
-    : undefined;
+  const scrutin = scrutinRow ? mapScrutin(scrutinRow) : undefined;
 
   const termine = dossierEstTermine(
     buildParcours((a.law?.dossier?.raw as any)?.dossierParlementaire ?? {})
@@ -1331,33 +1654,52 @@ export async function getDossiersPage({
   page = 1,
   perPage = 24,
   q = "",
+  avecTexte = false,
 }: {
   page?: number;
   perPage?: number;
   q?: string;
+  // true : ne remonter que les dossiers dont le texte articulé est publié, donc
+  // réellement explorables article par article (diff + blame).
+  avecTexte?: boolean;
 }): Promise<PageDossiers> {
-  const like = q.trim() ? `%${q.trim()}%` : "%";
-  const [{ c: total }] = await prisma.$queryRaw<{ c: number }[]>`
-    SELECT COUNT(*)::int AS c
-    FROM "Dossier" d
-    WHERE d."uid" IS NOT NULL AND d."title" IS NOT NULL AND d."title" ILIKE ${like}
-  `;
+  const f = new Filtres();
+  const conditions = [
+    `d."uid" IS NOT NULL`,
+    `d."title" IS NOT NULL`,
+    `d."title" ILIKE ${f.p(q.trim() ? `%${q.trim()}%` : "%")}`,
+  ];
+  if (avecTexte) {
+    conditions.push(`EXISTS (SELECT 1 FROM "LawText" t WHERE t."dossierUid" = d."uid")`);
+  }
+  const where = clauseWhere(conditions);
+
+  const [{ c: total }] = await prisma.$queryRawUnsafe<{ c: number }[]>(
+    `SELECT COUNT(*)::int AS c FROM "Dossier" d ${where}`,
+    ...f.params
+  );
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const offset = (pageSafe - 1) * perPage;
 
-  const rows = await prisma.$queryRaw<{ uid: string; titre: string; n: bigint; dep: bigint }[]>`
-    SELECT d."uid" AS uid, d."title" AS titre,
-           COUNT(a.id) AS n,
-           COUNT(DISTINCT a."authorId") AS dep
-    FROM "Dossier" d
-    LEFT JOIN "Law" l ON l."dossierId" = d.id
-    LEFT JOIN "Amendment" a ON a."lawId" = l.id
-    WHERE d."uid" IS NOT NULL AND d."title" IS NOT NULL AND d."title" ILIKE ${like}
-    GROUP BY d."uid", d."title"
-    ORDER BY n DESC, d."title" ASC
-    OFFSET ${offset} LIMIT ${perPage}
-  `;
+  const rows = await prisma.$queryRawUnsafe<
+    { uid: string; titre: string; n: bigint; dep: bigint; versions: bigint }[]
+  >(
+    `SELECT d."uid" AS uid, d."title" AS titre,
+            COUNT(a.id) AS n,
+            COUNT(DISTINCT a."authorId") AS dep,
+            (SELECT COUNT(*) FROM "LawText" t WHERE t."dossierUid" = d."uid") AS versions
+     FROM "Dossier" d
+     LEFT JOIN "Law" l ON l."dossierId" = d.id
+     LEFT JOIN "Amendment" a ON a."lawId" = l.id
+     ${where}
+     GROUP BY d."uid", d."title"
+     ORDER BY n DESC, d."title" ASC
+     OFFSET ${f.suivant()} LIMIT ${f.suivant(1)}`,
+    ...f.params,
+    offset,
+    perPage
+  );
 
   const uids = rows.map((r) => r.uid);
   const dossiers = uids.length
@@ -1381,23 +1723,334 @@ export async function getDossiersPage({
       deputesImpliques: Number(r.dep),
       derniereActualite: derniere?.date ?? "",
       etape: derniere ? { label: derniere.label, acteur: derniere.acteur } : { label: "Déposé", acteur: "depot" },
+      versionsTexte: Number(r.versions),
     };
   });
 
   return { items, total, page: pageSafe, perPage, totalPages };
 }
 
-// Sommaire hiérarchique simple à partir des articles réels
-export function buildSommaire(articles: Article[]) {
-  return [
+/* ------------------------------------------------------------------ */
+/* Registre des amendements (page /amendements)                        */
+/* ------------------------------------------------------------------ */
+
+// Sur une liste, on n'INFÈRE pas le statut : on restitue le sort publié par
+// l'Assemblée nationale, tel quel. Le statut « Non examiné » de la page loi
+// suppose de savoir si la procédure du dossier est achevée, ce qui demande de
+// reconstruire son parcours — trop coûteux pour chaque ligne d'une liste. Un
+// amendement sans sort publié est donc affiché comme tel, sans supposition.
+export type AmendementListItem = {
+  uid: string;
+  numero: string;
+  article?: string;
+  sortLibelle?: string; // sort officiel AN, verbatim
+  adopte: boolean;
+  rejete: boolean;
+  dateDepot: string;
+  auteur: Depute;
+  dossierUid?: string;
+  dossierTitre?: string;
+};
+
+// Filtres proposés, chacun adossé à un fait présent en base (pas à une déduction).
+// Les fragments SQL sont écrits ici, sans valeur venant de l'extérieur.
+export const FILTRES_SORT = {
+  adoptes: { label: "Adoptés", sql: `a."status" = 'ACCEPTED'` },
+  rejetes: { label: "Rejetés", sql: `a."status" = 'REJECTED'` },
+  retires: { label: "Retirés", sql: `a."sort" ILIKE '%retir%'` },
+  tombes: { label: "Tombés", sql: `a."sort" ILIKE '%tomb%'` },
+  "non-soutenus": { label: "Non soutenus", sql: `a."sort" ILIKE '%non soutenu%'` },
+  "sans-sort": {
+    label: "Sans sort publié",
+    sql: `a."status" NOT IN ('ACCEPTED','REJECTED') AND (a."sort" IS NULL OR a."sort" = '')`,
+  },
+} as const;
+export type FiltreSort = keyof typeof FILTRES_SORT;
+
+export type PageAmendements = {
+  items: AmendementListItem[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+};
+
+export async function getAmendementsPage({
+  page = 1,
+  perPage = 25,
+  q = "",
+  sort,
+  groupe,
+  dossier,
+}: {
+  page?: number;
+  perPage?: number;
+  q?: string;
+  sort?: FiltreSort;
+  groupe?: string;
+  dossier?: string;
+}): Promise<PageAmendements> {
+  const f = new Filtres();
+  const conditions: string[] = [];
+  if (q.trim()) {
+    const like = f.p(`%${q.trim()}%`);
+    conditions.push(
+      `(a."numeroLong" ILIKE ${like} OR dep."name" ILIKE ${like} OR d."title" ILIKE ${like})`
+    );
+  }
+  if (sort && FILTRES_SORT[sort]) conditions.push(FILTRES_SORT[sort].sql);
+  if (groupe) conditions.push(`dep."group" = ${f.p(groupe)}`);
+  if (dossier) conditions.push(`d."uid" = ${f.p(dossier)}`);
+  const where = clauseWhere(conditions);
+
+  const jointures = `
+    FROM "Amendment" a
+    LEFT JOIN "Deputy" dep ON dep."uid" = a."authorId"
+    LEFT JOIN "Law" l ON a."lawId" = l."id"
+    LEFT JOIN "Dossier" d ON l."dossierId" = d."id"
+  `;
+
+  const [{ c: total }] = await prisma.$queryRawUnsafe<{ c: number }[]>(
+    `SELECT COUNT(*)::int AS c ${jointures} ${where}`,
+    ...f.params
+  );
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const pageSafe = Math.min(Math.max(1, page), totalPages);
+  const offset = (pageSafe - 1) * perPage;
+
+  const rows = await prisma.$queryRawUnsafe<
     {
-      titre: "Articles amendés",
-      chapitres: [
-        {
-          nom: null as string | null,
-          articles: articles.map((a) => `Article ${a.numero}`),
-        },
-      ],
-    },
-  ];
+      uid: string;
+      numeroLong: string | null;
+      numeroOrdreDepot: string | null;
+      article: string | null;
+      status: string;
+      sort: string | null;
+      dateDepot: Date | null;
+      authorId: string | null;
+      auteurNom: string | null;
+      auteurGroupe: string | null;
+      dossierUid: string | null;
+      dossierTitre: string | null;
+    }[]
+  >(
+    `SELECT a."uid", a."numeroLong", a."numeroOrdreDepot", a."article", a."status", a."sort",
+            a."dateDepot", a."authorId",
+            dep."name" AS "auteurNom", dep."group" AS "auteurGroupe",
+            d."uid" AS "dossierUid", d."title" AS "dossierTitre"
+     ${jointures} ${where}
+     ORDER BY a."dateDepot" DESC NULLS LAST, a."uid" ASC
+     OFFSET ${f.suivant()} LIMIT ${f.suivant(1)}`,
+    ...f.params,
+    offset,
+    perPage
+  );
+
+  const items: AmendementListItem[] = rows.map((r) => {
+    const deputes: DeputeMap = new Map();
+    if (refPropre(r.authorId) && r.auteurNom) {
+      deputes.set(r.authorId, {
+        name: r.auteurNom,
+        group: r.auteurGroupe,
+        photoUrl: photoParlementaireUrl(r.authorId),
+        institution: /^PA\d+$/.test(r.authorId) ? "assemblee" : undefined,
+      });
+    }
+    return {
+      uid: r.uid,
+      numero: r.numeroLong ?? r.numeroOrdreDepot ?? "?",
+      article: r.article ?? undefined,
+      sortLibelle: r.sort ?? undefined,
+      adopte: r.status === "ACCEPTED",
+      rejete: r.status === "REJECTED",
+      dateDepot: formatDate(r.dateDepot?.toISOString()),
+      auteur: deputeFromId(r.authorId, deputes),
+      dossierUid: r.dossierUid ?? undefined,
+      dossierTitre: r.dossierTitre ?? undefined,
+    };
+  });
+
+  return { items, total, page: pageSafe, perPage, totalPages };
 }
+
+// Groupes politiques présents en base, pour alimenter le filtre.
+export const getGroupes = cache(async function getGroupes(): Promise<
+  { groupe: string; libelle: string; couleur: string; deputes: number }[]
+> {
+  const rows = await prisma.$queryRaw<{ groupe: string; n: bigint }[]>`
+    SELECT "group" AS groupe, COUNT(*) AS n
+    FROM "Deputy" WHERE "group" IS NOT NULL AND "group" <> ''
+    GROUP BY 1 ORDER BY n DESC
+  `;
+  return rows.map((r) => ({
+    groupe: r.groupe,
+    libelle: GROUPE_LIBELLE[r.groupe] ?? r.groupe,
+    couleur: couleurGroupe(r.groupe),
+    deputes: Number(r.n),
+  }));
+});
+
+/* ------------------------------------------------------------------ */
+/* Registre des scrutins publics (pages /votes et /vote/[uid])         */
+/* ------------------------------------------------------------------ */
+
+export type ScrutinListItem = Scrutin & {
+  dossierUid?: string;
+  dossierTitre?: string;
+  amendementUid?: string;
+};
+
+export type PageScrutins = {
+  items: ScrutinListItem[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+};
+
+export async function getScrutinsPage({
+  page = 1,
+  perPage = 25,
+  q = "",
+  issue,
+  dossier,
+}: {
+  page?: number;
+  perPage?: number;
+  q?: string;
+  issue?: "adoptes" | "rejetes";
+  dossier?: string;
+}): Promise<PageScrutins> {
+  const f = new Filtres();
+  const conditions: string[] = [];
+  if (q.trim()) {
+    const like = f.p(`%${q.trim()}%`);
+    conditions.push(`(s."titre" ILIKE ${like} OR d."title" ILIKE ${like})`);
+  }
+  if (issue === "adoptes") conditions.push(`s."sortCode" ILIKE '%adopt%'`);
+  if (issue === "rejetes") conditions.push(`(s."sortCode" IS NULL OR s."sortCode" NOT ILIKE '%adopt%')`);
+  if (dossier) conditions.push(`s."dossierUid" = ${f.p(dossier)}`);
+  const where = clauseWhere(conditions);
+  const jointures = `
+    FROM "Scrutin" s
+    LEFT JOIN "Dossier" d ON d."uid" = s."dossierUid"
+  `;
+
+  const [{ c: total }] = await prisma.$queryRawUnsafe<{ c: number }[]>(
+    `SELECT COUNT(*)::int AS c ${jointures} ${where}`,
+    ...f.params
+  );
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const pageSafe = Math.min(Math.max(1, page), totalPages);
+  const offset = (pageSafe - 1) * perPage;
+
+  const rows = await prisma.$queryRawUnsafe<
+    (ScrutinRow & {
+      dossierUid: string | null;
+      dossierTitre: string | null;
+      amendementUid: string | null;
+    })[]
+  >(
+    `SELECT s."uid", s."numero", s."dateScrutin", s."titre", s."sortCode", s."sortLibelle",
+            s."pour", s."contre", s."abstention",
+            s."dossierUid" AS "dossierUid", d."title" AS "dossierTitre",
+            s."amendementUid" AS "amendementUid"
+     ${jointures} ${where}
+     ORDER BY s."dateScrutin" DESC NULLS LAST, s."uid" ASC
+     OFFSET ${f.suivant()} LIMIT ${f.suivant(1)}`,
+    ...f.params,
+    offset,
+    perPage
+  );
+
+  const items = rows.map((r) => ({
+    ...mapScrutin(r),
+    dossierUid: r.dossierUid ?? undefined,
+    dossierTitre: r.dossierTitre ?? undefined,
+    amendementUid: r.amendementUid ?? undefined,
+  }));
+
+  return { items, total, page: pageSafe, perPage, totalPages };
+}
+
+// Détail d'un scrutin : le résultat officiel + la ventilation NOMINATIVE des
+// positions, agrégée par groupe. Les 1,2 M de lignes de ScrutinVote sont
+// agrégées en SQL (index scrutinvote_scrutin) : les votes ne sont jamais
+// rapatriés un par un côté application.
+export interface ScrutinDetail extends ScrutinListItem {
+  parGroupe: {
+    groupe: string;
+    libelle: string;
+    couleur: string;
+    pour: number;
+    contre: number;
+    abstention: number;
+    nonVotant: number;
+  }[];
+  // Total des positions nominatives enregistrées. Peut différer du résultat
+  // officiel affiché par l'AN (délégations, corrections de vote) : on montre les
+  // deux plutôt que d'en choisir un.
+  totalPositions: number;
+}
+
+export const getScrutin = cache(async function getScrutin(
+  uid: string
+): Promise<ScrutinDetail | null> {
+  const rows = await prisma.$queryRaw<
+    (ScrutinRow & {
+      dossierUid: string | null;
+      dossierTitre: string | null;
+      amendementUid: string | null;
+    })[]
+  >`
+    SELECT s."uid", s."numero", s."dateScrutin", s."titre", s."sortCode", s."sortLibelle",
+           s."pour", s."contre", s."abstention",
+           s."dossierUid" AS "dossierUid", d."title" AS "dossierTitre",
+           s."amendementUid" AS "amendementUid"
+    FROM "Scrutin" s
+    LEFT JOIN "Dossier" d ON d."uid" = s."dossierUid"
+    WHERE s."uid" = ${uid}
+    LIMIT 1
+  `;
+  const s = rows[0];
+  if (!s) return null;
+
+  const groupes = await prisma.$queryRaw<
+    { groupe: string | null; pour: bigint; contre: bigint; abstention: bigint; nonVotant: bigint }[]
+  >`
+    SELECT dep."group" AS groupe,
+           COUNT(*) FILTER (WHERE sv."position" = 'pour') AS pour,
+           COUNT(*) FILTER (WHERE sv."position" = 'contre') AS contre,
+           COUNT(*) FILTER (WHERE sv."position" = 'abstention') AS abstention,
+           COUNT(*) FILTER (WHERE sv."position" = 'nonVotant') AS "nonVotant"
+    FROM "ScrutinVote" sv
+    LEFT JOIN "Deputy" dep ON dep."uid" = sv."acteurRef"
+    WHERE sv."scrutinUid" = ${uid}
+    GROUP BY dep."group"
+    ORDER BY COUNT(*) DESC
+  `;
+
+  const parGroupe = groupes.map((g) => ({
+    groupe: g.groupe ?? "—",
+    libelle: g.groupe ? GROUPE_LIBELLE[g.groupe] ?? g.groupe : "Groupe non renseigné",
+    couleur: couleurGroupe(g.groupe),
+    pour: Number(g.pour),
+    contre: Number(g.contre),
+    abstention: Number(g.abstention),
+    nonVotant: Number(g.nonVotant),
+  }));
+  const totalPositions = parGroupe.reduce(
+    (t, g) => t + g.pour + g.contre + g.abstention + g.nonVotant,
+    0
+  );
+
+  return {
+    ...mapScrutin(s),
+    dossierUid: s.dossierUid ?? undefined,
+    dossierTitre: s.dossierTitre ?? undefined,
+    amendementUid: s.amendementUid ?? undefined,
+    parGroupe,
+    totalPositions,
+  };
+});
+

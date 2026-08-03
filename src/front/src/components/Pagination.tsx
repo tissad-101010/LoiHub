@@ -17,14 +17,23 @@ function fenetre(page: number, total: number): (number | "…")[] {
 export default function Pagination({
   page,
   totalPages,
-  q,
+  base = "/lois",
+  params,
 }: {
   page: number;
   totalPages: number;
-  q?: string;
+  // Chemin de la page paginée (/lois, /amendements, /votes…)
+  base?: string;
+  // Paramètres à conserver d'une page à l'autre (recherche, filtres).
+  params?: Record<string, string | undefined>;
 }) {
   if (totalPages <= 1) return null;
-  const href = (p: number) => `/lois?page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+
+  const href = (p: number) => {
+    const qs = new URLSearchParams({ page: String(p) });
+    for (const [k, v] of Object.entries(params ?? {})) if (v) qs.set(k, v);
+    return `${base}?${qs.toString()}`;
+  };
 
   const lien = (p: number, label: React.ReactNode, actif = false, disabled = false) =>
     disabled ? (
@@ -42,7 +51,10 @@ export default function Pagination({
     );
 
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-1 border-t border-bordure pt-6">
+    <nav
+      aria-label="Pagination"
+      className="flex flex-wrap items-center justify-center gap-1 border-t border-bordure pt-6"
+    >
       {lien(page - 1, "← Précédent", false, page <= 1)}
       {fenetre(page, totalPages).map((p, i) =>
         p === "…" ? (

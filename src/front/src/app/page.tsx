@@ -3,21 +3,22 @@ import SiteHeader from "@/components/SiteHeader";
 import HomeHero from "@/components/HomeHero";
 import HomeFeatures from "@/components/HomeFeatures";
 import LoiCard from "@/components/LoiCard";
-import { getDossiersPage, getStatsGlobales } from "@/lib/data";
+import { getDossiersPage, getExtraitVitrine, getStatsGlobales } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [{ items, total }, stats] = await Promise.all([
+  const [{ items, total }, stats, extrait] = await Promise.all([
     getDossiersPage({ page: 1, perPage: 6 }),
     getStatsGlobales(),
+    getExtraitVitrine(),
   ]);
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-7xl space-y-12 p-6 pb-16">
-        <HomeHero featured={items[0]} stats={stats} />
+        <HomeHero featured={items[0]} stats={stats} extrait={extrait} />
 
         <HomeFeatures />
 

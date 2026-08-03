@@ -97,14 +97,15 @@ export default function GuideLecture() {
             ))}
           </ol>
           <p className="mt-3 text-xs leading-relaxed text-gris">
-            <span className="font-semibold text-encre">Sur cette page :</span>
-            {" "}cliquez une étape
-            du parcours pour voir le texte tel qu&apos;il était à ce moment-là.{" "}
-            <span className="rounded bg-green-100 px-1 py-0.5 text-green-800">En vert</span> ce
-            qui a été ajouté,{" "}
-            <span className="rounded bg-red-100 px-1 py-0.5 text-red-800">en rouge</span> ce qui
-            a été supprimé — comme un historique de versions. Les mots soulignés en pointillés
-            affichent leur définition au survol.
+            <span className="font-semibold text-encre">Sur cette page :</span> la dernière version
+            publiée d&apos;un article s&apos;affiche d&apos;emblée, avec en face de chaque alinéa son
+            origine. Choisissez un autre article dans le sommaire, comparez deux versions dans
+            « Évolution du texte » —{" "}
+            <span className="rounded bg-green-100 px-1 py-0.5 text-green-800">en vert</span> ce qui a
+            été ajouté,{" "}
+            <span className="rounded bg-red-100 px-1 py-0.5 text-red-800">en rouge</span> ce qui a été
+            supprimé — ou cliquez une étape du parcours pour lire le texte tel qu&apos;il était à ce
+            moment-là. Les mots soulignés en pointillés affichent leur définition au survol.
           </p>
         </div>
       )}

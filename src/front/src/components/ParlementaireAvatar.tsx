@@ -27,7 +27,7 @@ export default function ParlementaireAvatar({
       // eslint-disable-next-line @next/next/no-img-element -- External official portraits are tiny, dynamic, and already optimized by the institution.
       <img
         src={depute.photoUrl}
-        alt={`Portrait of ${depute.nom}`}
+        alt={`Portrait de ${depute.nom}`}
         title={`${depute.nom}${depute.id !== "?" ? ` · ${depute.id}` : ""}`}
         className={`${classes} shrink-0 rounded-full object-cover ring-1 ring-gray-200`}
         loading="lazy"

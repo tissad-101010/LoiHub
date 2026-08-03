@@ -9,9 +9,11 @@ type EnTeteLoi = Pick<
 // Couleur du badge de statut fidèle à l'état réel du texte : vert = abouti
 // (promulguée/adoptée), bleu = en cours de procédure, gris = simple dépôt.
 const BADGE_STATUT: Record<EnTeteLoi["statutVariant"], string> = {
-  termine: "bg-green-500/20 text-green-400",
-  encours: "bg-bleu-1000/20 text-bleu-100",
-  depose: "bg-white/10 text-white/70",
+  termine: "bg-green-400/25 text-green-100",
+  // `bleu-100` est un fond très clair : sur le bandeau bleu, il sert de TEXTE.
+  // (l'ancienne classe visait un `bleu-1000` qui n'existe pas -> badge sans fond)
+  encours: "bg-white/15 text-bleu-100",
+  depose: "bg-white/10 text-white/80",
 };
 
 export default function LoiHeader({ loi }: { loi: EnTeteLoi }) {
@@ -26,7 +28,7 @@ export default function LoiHeader({ loi }: { loi: EnTeteLoi }) {
       </span>
 
       {loi.loiPromulguee && (
-        <div className="mb-1 text-sm text-gray-300">
+        <div className="mb-1 text-sm text-white/80">
           {loi.loiPromulguee.urlLegifrance ? (
             <a
               href={loi.loiPromulguee.urlLegifrance}
@@ -43,16 +45,18 @@ export default function LoiHeader({ loi }: { loi: EnTeteLoi }) {
               {loi.loiPromulguee.date && ` du ${loi.loiPromulguee.date}`}
             </span>
           )}
-          <span className="text-gris"> · Journal officiel</span>
+          <span className="text-white/70"> · Journal officiel</span>
         </div>
       )}
-      <div className="mt-4 flex gap-8 text-sm text-gray-300">
+      {/* Sur le bandeau bleu, les libellés étaient en `text-gris` (#666) :
+          contraste ~2,4:1, sous le minimum AA. Passés en blanc atténué. */}
+      <div className="mt-4 flex gap-8 text-sm">
         <div>
-          <div className="text-gris">Déposé le</div>
+          <div className="text-white/70">Déposé le</div>
           <div className="text-white">{loi.dateDepot || "—"}</div>
         </div>
         <div>
-          <div className="text-gris">Promulgué le</div>
+          <div className="text-white/70">Promulgué le</div>
           <div className="text-white">{loi.datePromulgation || "en cours"}</div>
         </div>
       </div>

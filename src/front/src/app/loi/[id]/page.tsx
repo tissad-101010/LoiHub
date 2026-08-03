@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import LoiPageClient from "@/components/LoiPageClient";
-import { getProjetLoi, buildSommaire } from "@/lib/data";
+import { getProjetLoi } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,5 @@ export default async function LoiPage({ params }: { params: Promise<{ id: string
   // vrai 404 (voir not-found.tsx) au lieu d'une page d'erreur servie en 200
   if (!projet) notFound();
 
-  const sommaire = buildSommaire(projet.articles);
-  return <LoiPageClient projet={projet} sommaire={sommaire} />;
+  return <LoiPageClient projet={projet} />;
 }

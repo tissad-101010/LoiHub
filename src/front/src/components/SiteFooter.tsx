@@ -6,6 +6,8 @@ import Link from "next/link";
 const NAVIGATION = [
   { href: "/", label: "Accueil" },
   { href: "/lois", label: "Toutes les lois" },
+  { href: "/amendements", label: "Amendements" },
+  { href: "/votes", label: "Scrutins publics" },
   { href: "/deputes", label: "Députés" },
   { href: "/statistiques", label: "Statistiques" },
   { href: "/a-propos", label: "À propos" },

@@ -8,8 +8,8 @@ const FEATURES = [
   {
     titre: "Diff législatif",
     texte: "Visualisez précisément ce qui a été ajouté, modifié ou supprimé dans le texte, version par version.",
-    href: "/lois",
-    action: "Explorer les lois",
+    href: "/lois?texte=1",
+    action: "Explorer les textes comparables",
     chip: "bg-bleu-100 text-bleu",
     icone: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
@@ -20,9 +20,9 @@ const FEATURES = [
   },
   {
     titre: "Qui a écrit quoi",
-    texte: "Chaque modification a un auteur : découvrez qui a proposé chaque amendement et qui a influencé chaque article.",
-    href: "/deputes",
-    action: "Voir les députés",
+    texte: "Chaque modification a un auteur : l'origine de chaque alinéa, l'amendement qui l'a produit et le député qui l'a signé.",
+    href: "/amendements",
+    action: "Parcourir les amendements",
     chip: "bg-green-100 text-green-700",
     icone: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
@@ -33,8 +33,8 @@ const FEATURES = [
   {
     titre: "Votes en toute transparence",
     texte: "Les scrutins publics, texte par texte et amendement par amendement — la position de chaque député est publique.",
-    href: "/statistiques",
-    action: "Voir les statistiques",
+    href: "/votes",
+    action: "Voir les scrutins",
     chip: "bg-purple-100 text-purple-600",
     icone: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
