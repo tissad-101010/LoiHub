@@ -17,12 +17,18 @@ const STACK = [
   { couche: "Déploiement", techno: "Docker Compose · reverse proxy Caddy (HTTPS)" },
 ];
 
+// Jeux de données RÉELLEMENT exploités, avec les volumes présents en base.
+//
+// Les deux entrées « data.senat.fr » qui figuraient ici ont été retirées : la base
+// ne contient aucune donnée du Sénat, et aucun code n'en appelle (le seul appel
+// réseau à un site parlementaire va sur assemblee-nationale.fr, cf.
+// lib/parlementaires.ts). Annoncer une source non utilisée devant un jury qui peut
+// vérifier coûte plus cher que la ligne ne rapporte.
 const SOURCES = [
-  { categorie: "Dossiers législatifs", source: "data.assemblee-nationale.fr", url: "https://data.assemblee-nationale.fr/travaux-parlementaires/dossiers-legislatifs", format: "XML/JSON", perimetre: "XVIIe législature (+ XIV-XVI)" },
-  { categorie: "Dossiers législatifs", source: "data.senat.fr/dosleg", url: "https://data.senat.fr/dosleg/", format: "PostgreSQL", perimetre: "depuis oct. 1977" },
-  { categorie: "Amendements (source principale)", source: "data.assemblee-nationale.fr — tous les amendements", url: "https://data.assemblee-nationale.fr/travaux-parlementaires/amendements/tous-les-amendements", format: "XML/JSON", perimetre: "toutes lectures, XVIIe législature" },
-  { categorie: "Amendements", source: "data.senat.fr/ameli", url: "https://data.senat.fr/ameli/", format: "PostgreSQL", perimetre: "temps réel, depuis 2001/2010" },
-  { categorie: "Députés en exercice", source: "data.assemblee-nationale.fr — deputes-en-exercice", url: "https://data.assemblee-nationale.fr/acteurs/deputes-en-exercice", format: "CSV/XML", perimetre: "depuis le 8 juillet 2024" },
+  { categorie: "Dossiers législatifs", source: "data.assemblee-nationale.fr", url: "https://data.assemblee-nationale.fr/travaux-parlementaires/dossiers-legislatifs", format: "XML/JSON", perimetre: "2 926 dossiers (XVIIe législature, + XVIe résiduelle)" },
+  { categorie: "Amendements", source: "data.assemblee-nationale.fr — tous les amendements", url: "https://data.assemblee-nationale.fr/travaux-parlementaires/amendements/tous-les-amendements", format: "XML/JSON", perimetre: "121 109 amendements, toutes lectures" },
+  { categorie: "Scrutins et votes nominatifs", source: "data.assemblee-nationale.fr — votes", url: "https://data.assemblee-nationale.fr/travaux-parlementaires/votes", format: "XML/JSON", perimetre: "7 979 scrutins, 1 215 050 positions de vote" },
+  { categorie: "Députés en exercice", source: "data.assemblee-nationale.fr — deputes-en-exercice", url: "https://data.assemblee-nationale.fr/acteurs/deputes-en-exercice", format: "CSV/XML", perimetre: "577 députés, depuis le 8 juillet 2024" },
   { categorie: "Historique des députés", source: "data.assemblee-nationale.fr — historique-des-deputes", url: "https://data.assemblee-nationale.fr/acteurs/historique-des-deputes", format: "XML/JSON", perimetre: "depuis juin 1997" },
 ];
 
@@ -57,8 +63,15 @@ export default function AProposPage() {
           <p className="mt-3 text-sm leading-relaxed text-encre">
             La métaphore est celle de GitHub — diffs, historique, contributeurs — mais le projet{" "}
             <strong>n&apos;utilise pas git</strong>. Le backend repose sur des données relationnelles construites à
-            partir des jeux de données ouverts de l&apos;Assemblée nationale et du Sénat, interrogées via SQL pour
-            reconstituer les versions successives d&apos;un texte et la chaîne des amendements qui y ont mené.
+            partir des jeux de données ouverts de l&apos;Assemblée nationale, interrogées via SQL pour reconstituer
+            les versions successives d&apos;un texte et la chaîne des amendements qui y ont mené.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-gris">
+            <strong className="text-encre">Ce que LoiHub ne fait pas encore :</strong> les données du Sénat et de
+            Légifrance ne sont pas exploitées, et les comptes rendus de séance ne sont pas importés — ce qui explique
+            l&apos;absence de page « débats ». La lecture article par article, le diff et l&apos;origine des alinéas
+            supposent en outre que l&apos;Assemblée ait publié le texte articulé du dossier : les listes signalent
+            explicitement les textes concernés.
           </p>
           <p className="mt-3 text-sm text-gris">
             Projet développé dans le cadre du Hackathon Assemblée nationale 2026 (
