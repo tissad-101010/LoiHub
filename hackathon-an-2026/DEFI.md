@@ -7,9 +7,6 @@ LoiHub est une plateforme qui permet d’explorer les lois françaises comme si 
 ### Porteur
 Tahar Issad, FullStack Developer/Software Engineer student @42Paris
 
-### URL de démonstration
-https://loihub.retrystudio.com/
-
 ### Description longue
 **Contexte**
 
@@ -93,56 +90,53 @@ signale explicitement les autres plutôt que d’afficher une page vide.
 - [ ] `legiwatch-serveur-mcp-parlement` — Serveur MCP Parlement ✺ LegiWatch
 
 ### Galerie
-- ![LoiHub — explorer les lois comme du code source versionné](images/coverLH.png)
-- ![Accueil : un diff législatif réel en page d'entrée, avec l'amendement qui l'a produit et son auteur](images/image-1.png)
-- ![Page d'une loi : sommaire des articles, origine de chaque modification, comparaison de versions et parcours législatif](images/image-2.png)
-- ![Les quatre entrées du projet : diff, blame, historique complet et explications en langage clair](images/image-3.png)
+<!-- Captures réelles de l'application, prises sur le build de production, pas des
+     maquettes : chaque chiffre visible sort de la base. Forme de lien
+     « - [légende](chemin) », celle du gabarit officiel. -->
+- [Accueil : un diff législatif réel — l'amendement qui a produit le changement, son auteur, son motif](images/accueil-diff-reel.png)
+- [Origine de chaque alinéa, en regard du texte : la version qui l'a introduit — dépôt, commission, séance, navette](images/blame-par-alinea.png)
+- [Un scrutin public au nom près : la position de chaque groupe, sur 1 215 050 votes nominatifs en base](images/scrutin-nominatif.png)
 
 ### Documents
 - [Présentation LoiHub](docs/loihub-presentation.pdf)
 
-<!-- VIDÉO DE DÉMONSTRATION — comment le site du hackathon la récupère.
-     Le type du document est déduit de l'EXTENSION du fichier : rien d'autre à déclarer.
+<!-- VIDÉO DE DÉMONSTRATION — deux emplacements, et ils s'excluent.
+     Le gabarit officiel (hackathon2026.assemblee-nationale.fr/compte/template-DEFI.md)
+     documente pour « URL de démonstration » : une URL, « Ou, pour une vidéo stockée
+     dans le dépôt : [Voir la vidéo](docs/demo.mp4) ». C'est donc l'un OU l'autre —
+     y mettre la vidéo ferait perdre le bouton « Démonstration » vers la démo en
+     ligne, plus utile pour un jury qui veut cliquer. On garde l'URL.
 
-  Voie recommandée — une entrée de cette section « Documents » vers un .mp4 :
-  la page du défi le rend en bloc vidéo 16/9 pleine largeur dans « Documents du
-  défi », le traitement le plus visible de toute la fiche. Huit défis procèdent
-  ainsi. Marche à suivre :
+  Reste donc cette section « Documents », qui est de toute façon le meilleur
+  emplacement : la page du défi rend un .mp4 en bloc vidéo 16/9 pleine largeur
+  dans « Documents du défi », le traitement le plus visible de la fiche. Huit
+  défis procèdent ainsi. Marche à suivre :
     1. exporter en .mp4 — sur 38 fiches lues, les 8 vidéos déclarées sont TOUTES
        en .mp4 ; aucun .webm, .mov, YouTube ou Vimeo observé, donc hors .mp4 on ne
        sait pas ce que le site fait
     2. déposer le fichier dans hackathon-an-2026/docs/, sans espace ni accent dans
        le nom, et le pousser AVANT d'ajouter la ligne ci-dessous
     3. ajouter au-dessus, dans cette section, la ligne :
-           - [Vidéo de démonstration — parcours complet (~2 min)](docs/demo-loihub.mp4)
+           - [Vidéo de démonstration — parcours complet (~31 s)](docs/demo-loihub.mp4)
        Le libellé affiché est le texte ENTRE CROCHETS ; ce qui précède le crochet
        ouvrant est supprimé au rendu (LegisLens écrit « - 🎥 [Vidéo… ] » et l'emoji
-       disparaît). Mettre la durée dans les crochets, comme les autres équipes.
+       disparaît). Le type « vidéo » est déduit de l'extension, rien d'autre à
+       déclarer.
 
   NE PAS ajouter la ligne avant que le fichier soit poussé : le site afficherait un
   document en lien mort.
 
-  Autre emplacement, le champ dédié demoVideoUrl : il se remplit depuis la
-  section « URL de démonstration » quand celle-ci pointe vers un fichier vidéo DU
-  DÉPÔT en lien relatif, et non vers une URL absolue (seul défi à l'utiliser :
-  codeberg.org/rvba/tablette-02). Notre section « URL de démonstration » contient
-  l'URL de la démo en ligne, qui alimente demoUrl et produit le bouton
-  « Démonstration » des livrables. Aucun défi n'ayant renseigné les deux champs à
-  la fois, on ne sait pas si les faire cohabiter dans la même section fonctionne :
-  à tester avant de sacrifier le lien vers la démo en ligne, plus utile qu'une
-  vidéo pour un jury qui veut cliquer.
+  Chemins : relatifs à hackathon-an-2026/, donc « docs/x.pdf » et « images/y.png ».
+  Le gabarit officiel écrit « hackathon-an-2026/docs/… » dans son exemple de
+  Documents — c'est une coquille de sa part, la forme courte est celle qui
+  fonctionne (vérifié sur la fiche en ligne).
 
   Le PDF de présentation est volontairement référencé DEUX fois : ici, pour la
   carte de « Documents du défi », et dans « Diapositives de présentation »
   ci-dessous, qui alimente le bouton dédié des livrables. Ce n'est pas un oubli. -->
 
-<!-- À FAIRE, BLOQUANT : docs/loihub-presentation.pdf fait 0 OCTET, y compris dans le
-     commit publié (blob e69de29b, le blob vide de Git). La fiche en ligne propose
-     donc déjà un document vide au téléchargement. Les DEUX champs ci-dessous le
-     citent — la carte de « Documents du défi » et le bouton « Diapositives de la
-     présentation » des livrables : tant que le fichier n'a pas de contenu, mieux
-     vaut ne pas pousser la section ci-dessous, elle ne ferait qu'ajouter un second
-     lien mort bien visible. -->
+### URL de démonstration
+https://loihub.retrystudio.com/
 
 ### Diapositives de présentation
 [Diapositives de présentation (PDF)](docs/loihub-presentation.pdf)

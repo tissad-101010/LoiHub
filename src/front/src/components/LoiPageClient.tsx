@@ -176,8 +176,10 @@ export default function LoiPageClient({ projet }: { projet: ProjetLoi }) {
                   </div>
                 )}
 
-                {/* Sommaire + texte de l'article : le cœur de la page, visible d'emblée. */}
-                <section className="border border-bordure bg-white p-5">
+                {/* Sommaire + texte de l'article : le cœur de la page, visible d'emblée.
+                    `id` : permet de pointer directement le bloc de lecture depuis un
+                    lien (#texte-de-loi), utile pour partager un article précis. */}
+                <section id="texte-de-loi" className="border border-bordure bg-white p-5">
                   <h2 className="mb-4 titre text-xl text-encre">Explorer le texte de loi</h2>
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-[13rem_minmax(0,1fr)]">
                     <div className="md:border-r md:border-bordure md:pr-4">
